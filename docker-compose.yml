@@ -1,0 +1,30 @@
+name: ${PROJECT_CODE}
+
+services:
+  svc:
+    container_name: ${PROJECT_CODE}_${CONTAINER_NAME}
+    image: ${REGISTRY_PROJECT_ROOT_URL}/${CONTAINER_NAME}:local
+    platform: linux/arm64/v8
+    pull_policy: if_not_present
+    build:
+      context: .
+      dockerfile: Dockerfile.local
+    restart: unless-stopped
+    ports:
+      - ${APP_PORT}:5001
+      - 5678:5678
+    env_file:
+      - .env
+    volumes:
+      - .:/code
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://0.0.0.0:5001/api/v1/ || exit 1"]
+      start_period: 10s
+      interval: 30s
+      timeout: 2s
+      retries: 3
+        
+networks:
+  default:
+    name: ${DOCKER_NETWORK_NAME}
+    external: true

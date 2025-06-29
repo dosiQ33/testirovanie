@@ -14,6 +14,7 @@ from app.modules.ckl.router import router as router_ckl
 from app.modules.nsi.router import router as router_nsi
 from app.modules.ext.router import router as router_ext
 from app.modules.ar.router import router as router_ar
+from app.modules.orders.router import router as router_orders
 
 
 @asynccontextmanager
@@ -47,6 +48,7 @@ def register_routers(app: FastAPI) -> None:
     app.include_router(router_nsi, prefix=global_prefix_v1)
     app.include_router(router_ext, prefix=global_prefix_v1)
     app.include_router(router_ar, prefix=global_prefix_v1)
+    app.include_router(router_orders, prefix=global_prefix_v1)
 
 
 def create_app() -> FastAPI:

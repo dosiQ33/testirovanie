@@ -1,7 +1,16 @@
 from typing import Optional
+from datetime import date
 from fastapi_filter import FilterDepends, with_prefix
 from fastapi_filter.contrib.sqlalchemy import Filter
-from .models import Risks, DicRiskDegree, DicRiskType, DicRiskName
+from .models import (
+    Risks,
+    DicRiskDegree,
+    DicRiskType,
+    DicRiskName,
+    Orders,
+    DicOrderStatus,
+    DicOrderType,
+)
 from app.modules.ckf.models import Organizations
 
 
@@ -39,6 +48,22 @@ class OrganizationsFilter(Filter):
         model = Organizations
 
 
+class DicOrderStatusFilter(Filter):
+    id: Optional[int] = None
+    name: Optional[str] = None
+
+    class Constants(Filter.Constants):
+        model = DicOrderStatus
+
+
+class DicOrderTypeFilter(Filter):
+    id: Optional[int] = None
+    name: Optional[str] = None
+
+    class Constants(Filter.Constants):
+        model = DicOrderType
+
+
 class RisksFilter(Filter):
     id: Optional[int] = None
     risk_type: Optional[int] = None
@@ -61,3 +86,23 @@ class RisksFilter(Filter):
 
     class Constants(Filter.Constants):
         model = Risks
+
+
+class OrdersFilter(Filter):
+    id: Optional[int] = None
+    order_date: Optional[date] = None
+    order_deadline: Optional[date] = None
+    order_num: Optional[int] = None
+    employee_id: Optional[int] = None
+    order_status: Optional[int] = None
+    order_type: Optional[int] = None
+
+    order_status_ref: Optional[DicOrderStatusFilter] = FilterDepends(
+        with_prefix("order_status_ref", DicOrderStatusFilter)
+    )
+    order_type_ref: Optional[DicOrderTypeFilter] = FilterDepends(
+        with_prefix("order_type_ref", DicOrderTypeFilter)
+    )
+
+    class Constants(Filter.Constants):
+        model = Orders

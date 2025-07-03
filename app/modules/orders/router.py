@@ -11,6 +11,7 @@ from .dtos import (
     DicOrderTypeDto,
     DicRiskDegreeDto,
     DicRiskNameDto,
+    OrderPatchDto,
     DicRiskTypeDto,
     RisksDto,
     RisksFilterDto,
@@ -209,6 +210,7 @@ class OrdersRouter(APIRouter):
         repo = OrdersRepo(session)
 
         new_order = await repo.add(order_data)
+        reloaded_order = await repo.get_one_by_id(new_order.id)
 
         return OrdersDto.model_validate(new_order)
 
@@ -250,6 +252,35 @@ class OrdersRouter(APIRouter):
             )
 
         return OrdersDto.model_validate(order)
+
+    @sub_router.patch("/{order_id}")
+    async def patch_order(
+        order_id: int,
+        order_data: OrderPatchDto,
+        session: AsyncSession = Depends(get_session_with_commit),
+    ) -> OrdersDto:
+        """
+        Частично обновить поручение (обновляются только переданные поля)
+
+        - **order_id**: ID поручения для обновления
+        - **order_deadline**: срок исполнения (опционально)
+        - **order_num**: номер поручения (опционально)
+        - **employee_id**: ID сотрудника (опционально)
+        - **order_status**: статус поручения (опционально)
+        - **order_type**: тип поручения (опционально)
+        - **order_desc**: описание поручения (опционально)
+        - **step_count**: количество шагов (опционально)
+        - **sign**: подпись (опционально)
+
+        Все поля опциональны. Будут обновлены только те поля, которые переданы в запросе.
+        """
+        repo = OrdersRepo(session)
+
+        updated_order = await repo.patch_order(order_id, order_data)
+
+        reloaded_order = await repo.get_one_by_id(updated_order.id)
+
+        return OrdersDto.model_validate(reloaded_order)
 
 
 # Подключение всех роутеров

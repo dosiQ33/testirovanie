@@ -2,64 +2,9 @@ from __future__ import annotations
 from typing import Optional
 from sqlalchemy import ForeignKey, BigInteger, Integer, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from datetime import date, datetime
-from geoalchemy2 import Geometry, WKBElement
+from datetime import date
 
-from app.modules.common.models import BaseModel, BasestModel
-
-
-class OrdersOrganizations(BaseModel):
-    __tablename__ = "organizations"
-    __table_args__ = dict(schema="public", comment="Организации")
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-
-    iin_bin: Mapped[str] = mapped_column(comment="ИИН/БИН", nullable=False)
-    name_ru: Mapped[str] = mapped_column(comment="Наименование РУС", nullable=False)
-    name_kk: Mapped[Optional[str]] = mapped_column(
-        comment="Наименование КАЗ", nullable=True
-    )
-
-    date_start: Mapped[Optional[date]] = mapped_column(
-        comment="Дата регистрации", nullable=True
-    )
-    date_stop: Mapped[Optional[date]] = mapped_column(
-        comment="Дата снятия с регистрации", nullable=True
-    )
-
-    nds_number: Mapped[Optional[int]] = mapped_column(
-        comment="Номер свидетельства НДС", nullable=True
-    )
-    nds_date_reg: Mapped[Optional[str]] = mapped_column(
-        comment="Дата регистрации НДС", nullable=True
-    )
-
-    address: Mapped[Optional[str]] = mapped_column(comment="Адрес", nullable=True)
-
-    shape: Mapped[Optional[WKBElement]] = mapped_column(
-        Geometry(geometry_type="POINT", srid=4326, spatial_index=True),
-        comment="Геометрия",
-        nullable=True,
-    )
-
-    ugd_id: Mapped[int] = mapped_column(comment="УГД", nullable=False)
-    oked_id: Mapped[Optional[int]] = mapped_column(comment="ОКЭД", nullable=True)
-    tax_regime_id: Mapped[Optional[int]] = mapped_column(
-        comment="Режим налогообложения", nullable=True
-    )
-    reg_type_id: Mapped[Optional[int]] = mapped_column(
-        comment="Тип регистрации", nullable=True
-    )
-    leader_id: Mapped[Optional[int]] = mapped_column(
-        comment="Руководитель", nullable=True
-    )
-
-    knn: Mapped[Optional[float]] = mapped_column(
-        comment="Коэффициент налоговой нагрузки", nullable=True
-    )
-    knn_co: Mapped[Optional[float]] = mapped_column(
-        comment="Коэффициент СО", nullable=True
-    )
+from app.modules.common.models import BasestModel
 
 
 class DicOrderStatus(BasestModel):

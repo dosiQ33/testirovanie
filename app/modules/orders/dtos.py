@@ -1,26 +1,8 @@
 from typing import Optional, List
 from datetime import date
+from pydantic import BaseModel
 from app.modules.common.dto import BaseDto, BasestDto
 from app.modules.common.utils import SerializedGeojson
-
-
-class OrdersOrganizationDto(BaseDto):
-    iin_bin: str
-    name_ru: str
-    name_kk: Optional[str] = None
-    date_start: Optional[date] = None
-    date_stop: Optional[date] = None
-    nds_number: Optional[int] = None
-    nds_date_reg: Optional[str] = None
-    address: Optional[str] = None
-    shape: Optional[SerializedGeojson] = None
-    ugd_id: int
-    oked_id: Optional[int] = None
-    tax_regime_id: Optional[int] = None
-    reg_type_id: Optional[int] = None
-    leader_id: Optional[int] = None
-    knn: Optional[float] = None
-    knn_co: Optional[float] = None
 
 
 class DicOrderStatusDto(BasestDto):
@@ -145,3 +127,16 @@ class OrdersFilterDto(BasestDto):
     employee_id: Optional[int] = None
     order_status: Optional[int] = None
     order_type: Optional[int] = None
+
+
+class OrderPatchDto(BaseModel):
+    """DTO для частичного обновления поручения (все поля опциональны)"""
+
+    order_deadline: Optional[date] = None
+    order_num: Optional[int] = None
+    employee_id: Optional[int] = None
+    order_status: Optional[int] = None
+    order_type: Optional[int] = None
+    order_desc: Optional[str] = None
+    step_count: Optional[int] = None
+    sign: Optional[str] = None

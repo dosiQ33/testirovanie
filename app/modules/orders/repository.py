@@ -1,9 +1,16 @@
 from sqlalchemy import select, update
+from fastapi import HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 import sqlalchemy
 from loguru import logger
 from app.modules.common.repository import BaseRepository
-from .dtos import RisksFilterDto, RiskUpdateDto, RiskBulkUpdateDto, OrdersFilterDto
+from .dtos import (
+    RisksFilterDto,
+    RiskUpdateDto,
+    RiskBulkUpdateDto,
+    OrdersFilterDto,
+    OrderPatchDto,
+)
 from .models import (
     Risks,
     DicRiskDegree,
@@ -11,9 +18,9 @@ from .models import (
     DicRiskName,
     DicOrderStatus,
     DicOrderType,
-    OrdersOrganizations,
     Orders,
 )
+from app.modules.ckf.models import Organizations
 
 
 class DicOrderStatusRepo(BaseRepository):
@@ -44,8 +51,8 @@ class RisksRepo(BaseRepository):
             query = (
                 select(self.model)
                 .join(
-                    OrdersOrganizations,
-                    self.model.organization_id == OrdersOrganizations.id,
+                    Organizations,
+                    self.model.organization_id == Organizations.id,
                     isouter=True,
                 )
                 .join(DicRiskType, self.model.risk_type == DicRiskType.id, isouter=True)
@@ -67,7 +74,7 @@ class RisksRepo(BaseRepository):
                 query = query.filter(self.model.risk_name == filters.risk_name_id)
 
             if filters.iin_bin is not None:
-                query = query.filter(OrdersOrganizations.iin_bin == filters.iin_bin)
+                query = query.filter(Organizations.iin_bin == filters.iin_bin)
 
             result = await self._session.execute(query)
             records = result.unique().scalars().all()
@@ -196,3 +203,45 @@ class OrdersRepo(BaseRepository):
         except SQLAlchemyError as e:
             logger.error(f"Ошибка при поиске поручений по фильтрам {filters}: {e}")
             raise
+
+    async def patch_order(self, order_id: int, order_data: OrderPatchDto) -> Orders:
+        """Частично обновить поручение (только переданные поля)"""
+        try:
+            logger.info(
+                f"Частичное обновление поручения ID={order_id} с параметрами: {order_data.model_dump(exclude_unset=True)}"
+            )
+
+            existing_order = await self.get_one_by_id(order_id)
+            if not existing_order:
+                raise HTTPException(
+                    status_code=404, detail=f"Поручение с ID {order_id} не найдено"
+                )
+
+            update_data = order_data.model_dump(exclude_unset=True, exclude_none=True)
+
+            if not update_data:
+                raise HTTPException(
+                    status_code=400, detail="Не передано ни одного поля для обновления"
+                )
+
+            for field, value in update_data.items():
+                if hasattr(existing_order, field):
+                    setattr(existing_order, field, value)
+
+            await self._session.flush()
+            await self._session.refresh(existing_order)
+
+            logger.info(
+                f"Поручение ID={order_id} успешно обновлено. Обновленные поля: {list(update_data.keys())}"
+            )
+            return existing_order
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(
+                f"Ошибка при частичном обновлении поручения ID={order_id}: {e}"
+            )
+            raise HTTPException(
+                status_code=500, detail=f"Ошибка при обновлении поручения: {str(e)}"
+            )

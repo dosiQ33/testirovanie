@@ -5,6 +5,7 @@ from loguru import logger
 
 from app.modules.common.repository import BaseRepository
 from .models import Employees, DicUl, DicRoles, DicFl
+from .dtos import EmployeesFilterDto
 
 
 class DicUlRepo(BaseRepository):
@@ -113,12 +114,9 @@ class DicFlRepo(BaseRepository):
 class EmployeesRepo(BaseRepository):
     model = Employees
 
-    async def get_many(
-        self, filters=None, page_size: int | None = None, page: int | None = None
-    ):
-        """Override to handle joins for related entity filtering"""
+    async def filter_employees(self, filters: EmployeesFilterDto):
+        """Get employees with custom filtering"""
         try:
-            # Base query with joins for related entities
             query = (
                 select(self.model)
                 .outerjoin(DicFl, self.model.fl_id == DicFl.id)
@@ -126,7 +124,68 @@ class EmployeesRepo(BaseRepository):
                 .outerjoin(DicRoles, self.model.role == DicRoles.id)
             )
 
-            # Count query with same joins
+            if filters.id is not None:
+                query = query.filter(self.model.id == filters.id)
+
+            if filters.fl_id is not None:
+                query = query.filter(self.model.fl_id == filters.fl_id)
+
+            if filters.ul_id is not None:
+                query = query.filter(self.model.ul_id == filters.ul_id)
+
+            if filters.role_id is not None:
+                query = query.filter(self.model.role == filters.role_id)
+
+            if filters.login is not None:
+                query = query.filter(self.model.login.ilike(f"%{filters.login}%"))
+
+            if filters.deleted is not None:
+                query = query.filter(self.model.deleted == filters.deleted)
+
+            if filters.blocked is not None:
+                query = query.filter(self.model.blocked == filters.blocked)
+
+            if filters.employee_position is not None:
+                query = query.filter(
+                    self.model.employee_position.ilike(f"%{filters.employee_position}%")
+                )
+
+            if filters.employee_department is not None:
+                query = query.filter(
+                    self.model.employee_department.ilike(
+                        f"%{filters.employee_department}%"
+                    )
+                )
+
+            if filters.employee_status is not None:
+                query = query.filter(
+                    self.model.employee_status.ilike(f"%{filters.employee_status}%")
+                )
+
+            query = query.order_by(self.model.id.desc())
+
+            result = await self._session.execute(query)
+            records = result.unique().scalars().all()
+
+            logger.info(f"Найдено {len(records)} сотрудников.")
+            return records
+
+        except SQLAlchemyError as e:
+            logger.error(f"Ошибка при поиске сотрудников по фильтрам {filters}: {e}")
+            raise
+
+    async def get_many(
+        self, filters=None, page_size: int | None = None, page: int | None = None
+    ):
+        """Override to handle joins for related entity filtering"""
+        try:
+            query = (
+                select(self.model)
+                .outerjoin(DicFl, self.model.fl_id == DicFl.id)
+                .outerjoin(DicUl, self.model.ul_id == DicUl.id)
+                .outerjoin(DicRoles, self.model.role == DicRoles.id)
+            )
+
             count_query = (
                 select(func.count(self.model.id))
                 .outerjoin(DicFl, self.model.fl_id == DicFl.id)
@@ -134,22 +193,18 @@ class EmployeesRepo(BaseRepository):
                 .outerjoin(DicRoles, self.model.role == DicRoles.id)
             )
 
-            # Apply filters if provided
             if filters is not None:
                 query = filters.filter(query)
                 count_query = filters.filter(count_query)
 
-            # Get total count
             total = (await self._session.execute(count_query)).scalar()
 
-            # Apply pagination
             if page_size is not None and page is not None:
                 offset = (page - 1) * page_size
                 query = query.offset(offset).limit(page_size)
             elif page_size is not None:
                 query = query.limit(page_size)
 
-            # Execute query
             result = await self._session.execute(query)
             records = result.unique().scalars().all()
 
@@ -160,138 +215,4 @@ class EmployeesRepo(BaseRepository):
             return records, total
         except SQLAlchemyError as e:
             logger.error(f"Ошибка при поиске сотрудников: {e}")
-            raise
-
-    async def get_by_login(self, login: str) -> Optional[Employees]:
-        """Получить сотрудника по логину"""
-        try:
-            query = select(self.model).filter_by(login=login)
-            result = await self._session.execute(query)
-            record = result.unique().scalar_one_or_none()
-            logger.info(
-                f"Сотрудник с логином {login} {'найден' if record else 'не найден'}"
-            )
-            return record
-        except SQLAlchemyError as e:
-            logger.error(f"Ошибка при поиске сотрудника по логину {login}: {e}")
-            raise
-
-    async def get_by_ul_id(self, ul_id: int) -> List[Employees]:
-        """Получить всех сотрудников организации"""
-        try:
-            query = select(self.model).filter_by(ul_id=ul_id)
-            result = await self._session.execute(query)
-            records = result.unique().scalars().all()
-            logger.info(
-                f"Найдено {len(records)} сотрудников для организации ul_id={ul_id}"
-            )
-            return records
-        except SQLAlchemyError as e:
-            logger.error(f"Ошибка при поиске сотрудников для ul_id={ul_id}: {e}")
-            raise
-
-    async def get_by_role(self, role_id: int) -> List[Employees]:
-        """Получить всех сотрудников с определенной ролью"""
-        try:
-            query = select(self.model).filter_by(role=role_id)
-            result = await self._session.execute(query)
-            records = result.unique().scalars().all()
-            logger.info(f"Найдено {len(records)} сотрудников с ролью role={role_id}")
-            return records
-        except SQLAlchemyError as e:
-            logger.error(f"Ошибка при поиске сотрудников с ролью role={role_id}: {e}")
-            raise
-
-    async def get_active_employees(self) -> List[Employees]:
-        """Получить всех активных (не удаленных и не заблокированных) сотрудников"""
-        try:
-            query = select(self.model).filter(
-                (self.model.deleted.is_(False) | self.model.deleted.is_(None))
-                & (self.model.blocked.is_(False) | self.model.blocked.is_(None))
-            )
-            result = await self._session.execute(query)
-            records = result.unique().scalars().all()
-            logger.info(f"Найдено {len(records)} активных сотрудников")
-            return records
-        except SQLAlchemyError as e:
-            logger.error(f"Ошибка при поиске активных сотрудников: {e}")
-            raise
-
-    async def get_by_department(self, department: str) -> List[Employees]:
-        """Получить всех сотрудников отдела"""
-        try:
-            query = select(self.model).filter_by(employee_department=department)
-            result = await self._session.execute(query)
-            records = result.unique().scalars().all()
-            logger.info(f"Найдено {len(records)} сотрудников в отделе {department}")
-            return records
-        except SQLAlchemyError as e:
-            logger.error(f"Ошибка при поиске сотрудников отдела {department}: {e}")
-            raise
-
-    async def get_by_position(self, position: str) -> List[Employees]:
-        """Получить всех сотрудников с определенной должностью"""
-        try:
-            query = select(self.model).filter_by(employee_position=position)
-            result = await self._session.execute(query)
-            records = result.unique().scalars().all()
-            logger.info(f"Найдено {len(records)} сотрудников с должностью {position}")
-            return records
-        except SQLAlchemyError as e:
-            logger.error(f"Ошибка при поиске сотрудников с должностью {position}: {e}")
-            raise
-
-    async def search_by_organization_name(self, org_name: str) -> List[Employees]:
-        """Поиск сотрудников по названию организации"""
-        try:
-            query = (
-                select(self.model)
-                .join(DicUl, self.model.ul_id == DicUl.id)
-                .filter(DicUl.name.ilike(f"%{org_name}%"))
-            )
-            result = await self._session.execute(query)
-            records = result.unique().scalars().all()
-            logger.info(
-                f"Найдено {len(records)} сотрудников по названию организации '{org_name}'"
-            )
-            return records
-        except SQLAlchemyError as e:
-            logger.error(f"Ошибка при поиске сотрудников по названию организации: {e}")
-            raise
-
-    async def search_by_role_name(self, role_name: str) -> List[Employees]:
-        """Поиск сотрудников по названию роли"""
-        try:
-            query = (
-                select(self.model)
-                .join(DicRoles, self.model.role == DicRoles.id)
-                .filter(DicRoles.role_name.ilike(f"%{role_name}%"))
-            )
-            result = await self._session.execute(query)
-            records = result.unique().scalars().all()
-            logger.info(f"Найдено {len(records)} сотрудников с ролью '{role_name}'")
-            return records
-        except SQLAlchemyError as e:
-            logger.error(f"Ошибка при поиске сотрудников по роли: {e}")
-            raise
-
-    async def search_by_person_name(
-        self, surname: str = None, name: str = None
-    ) -> List[Employees]:
-        """Поиск сотрудников по имени/фамилии физического лица"""
-        try:
-            query = select(self.model).join(DicFl, self.model.fl_id == DicFl.id)
-
-            if surname:
-                query = query.filter(DicFl.surname.ilike(f"%{surname}%"))
-
-            if name:
-                query = query.filter(DicFl.name.ilike(f"%{name}%"))
-
-            result = await self._session.execute(query)
-            records = result.unique().scalars().all()
-            logger.info(f"Найдено {len(records)} сотрудников по имени/фамилии")
-            return records
-        except SQLAlchemyError as e:
-            logger.error(f"Ошибка при поиске сотрудников по имени: {e}")
             raise

@@ -1,5 +1,4 @@
 from typing import Optional
-from datetime import date, datetime
 from fastapi_filter import FilterDepends, with_prefix
 from fastapi_filter.contrib.sqlalchemy import Filter
 from .models import Employees, DicUl, DicRoles, DicFl
@@ -11,11 +10,6 @@ class DicUlFilter(Filter):
     bin: Optional[str] = None
     shortname: Optional[str] = None
     name: Optional[str] = None
-    address: Optional[str] = None
-    kato: Optional[str] = None
-    oblast_id: Optional[int] = None
-    raion_id: Optional[int] = None
-    create_date: Optional[date] = None
 
     class Constants(Filter.Constants):
         model = DicUl
@@ -25,7 +19,6 @@ class DicUlFilter(Filter):
 class DicRolesFilter(Filter):
     id: Optional[int] = None
     role_name: Optional[str] = None
-    actions: Optional[int] = None
     description: Optional[str] = None
 
     class Constants(Filter.Constants):
@@ -39,10 +32,6 @@ class DicFlFilter(Filter):
     surname: Optional[str] = None
     name: Optional[str] = None
     patronymic: Optional[str] = None
-    date_of_birth: Optional[date] = None
-    email: Optional[str] = None
-    phone: Optional[str] = None
-    create_date: Optional[date] = None
 
     class Constants(Filter.Constants):
         model = DicFl
@@ -50,7 +39,6 @@ class DicFlFilter(Filter):
 
 
 class EmployeesFilter(Filter):
-    # Direct employee fields
     id: Optional[int] = None
     fl_id: Optional[int] = None
     ul_id: Optional[int] = None
@@ -58,12 +46,10 @@ class EmployeesFilter(Filter):
     login: Optional[str] = None
     deleted: Optional[bool] = None
     blocked: Optional[bool] = None
-    empl_create_date: Optional[datetime] = None
     employee_position: Optional[str] = None
     employee_department: Optional[str] = None
     employee_status: Optional[str] = None
 
-    # Filtering by related entities
     fl: Optional[DicFlFilter] = FilterDepends(with_prefix("fl", DicFlFilter))
     ul: Optional[DicUlFilter] = FilterDepends(with_prefix("ul", DicUlFilter))
     role_ref: Optional[DicRolesFilter] = FilterDepends(

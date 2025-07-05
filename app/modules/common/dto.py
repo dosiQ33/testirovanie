@@ -8,8 +8,10 @@ Copyright (c) 2025 RaiMX
 
 from typing import List, Optional
 from fastapi import Query
+from datetime import date
 from pydantic import Field, BaseModel
 from app.modules.common.utils import SerializedGeojson
+from .enums import RegionEnum
 
 
 class BasestDto(BaseModel):
@@ -68,3 +70,29 @@ class Bbox(BaseModel):
 
 class TerritoryFilterDto(BasestDto):
     territory: Optional[str] = None
+
+
+class ByYearAndRegionsFilterDto(TerritoryFilterDto):
+    period_start: date
+    period_end: date
+    region: RegionEnum
+
+
+class CountByTerritoryAndRegionsDto(TerritoryFilterDto):
+    region: RegionEnum
+
+
+class CountByYearAndRegionsDto(TerritoryFilterDto):
+    year: int
+    region: RegionEnum
+    
+    
+class CountResponseDto(BasestDto):
+    count: int
+    
+    
+class ByMonthAndRegionsResponseDto(CountResponseDto):
+    month: int
+
+    
+

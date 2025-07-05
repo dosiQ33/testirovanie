@@ -9,7 +9,7 @@ Copyright (c) 2025 RaiMX
 import json
 import re
 from functools import partial
-from typing import Any, List, Optional, Annotated
+from typing import Any, List, Optional, Annotated, Union
 from geoalchemy2.shape import to_shape
 from shapely import to_geojson, wkb
 from sqlmodel import SQLModel
@@ -17,7 +17,7 @@ from starlette.responses import JSONResponse
 from pydantic import PlainSerializer
 from geoalchemy2.functions import ST_AsGeoJSON
 from sqlalchemy.ext.declarative import DeclarativeMeta
-from geoalchemy2.elements import WKBElement
+from geoalchemy2.elements import WKBElement, WKTElement
 from binascii import unhexlify
 
 # CONSTANTS
@@ -91,6 +91,17 @@ SerializedGeojson = Annotated[object, PlainSerializer(wkb_to_geojson)]
 def shape_to_geojson(obj):
     obj.shape = ST_AsGeoJSON(obj.shape)
     return obj
+
+
+def territory_to_geo_element(territory: str, srid: int = 4326) -> Union[WKBElement, WKTElement]:
+    """парсим кординаты в формате строки в обьект WKBE, WKTE для фильтров"""
+    
+    # ВАЖНО! WKBE нужен для удобного тестирование, у нас кординаты в organizations.shape, oblasti.geom храняться в формате WKBE
+    # когда тестируем локально без фронта можно копировать кординаты из этих столбцов и ложить в запросы
+    if bool(re.fullmatch(r'[0-9A-Fa-f]+', territory)) and len(territory) % 2 == 0:
+        return WKBElement(bytes.fromhex(territory), srid=srid)
+    else:
+        return WKTElement(territory, srid=srid)
 
 
 class AlchemyEncoder(json.JSONEncoder):

@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import Optional
 from sqlalchemy import ForeignKey, BigInteger, Integer, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from datetime import date
+from datetime import date, datetime
 
 from app.modules.common.models import BasestModel
 
@@ -128,4 +128,49 @@ class Orders(BasestModel):
     )
     order_type_ref: Mapped["DicOrderType"] = relationship(
         "DicOrderType", lazy="selectin", foreign_keys=[order_type]
+    )
+
+
+class Executions(BasestModel):
+    __tablename__ = "executions"
+    __table_args__ = dict(schema="orders", comment="Исполнения")
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    exec_date: Mapped[Optional[date]] = mapped_column(comment="Дата исполнения")
+    exec_text: Mapped[Optional[str]] = mapped_column(Text, comment="Текст исполнения")
+    order_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("orders.orders.id"), comment="ID поручения"
+    )
+    exec_num: Mapped[Optional[int]] = mapped_column(comment="Номер исполнения")
+    employee_id: Mapped[Optional[int]] = mapped_column(comment="ID сотрудника")
+    is_accepted: Mapped[Optional[bool]] = mapped_column(comment="Принято")
+    sign: Mapped[Optional[str]] = mapped_column(Text, comment="Подпись")
+
+    # Relationship to order
+    order: Mapped["Orders"] = relationship(
+        "Orders", lazy="selectin", foreign_keys=[order_id]
+    )
+
+
+class ExecFiles(BasestModel):
+    __tablename__ = "exec_files"
+    __table_args__ = dict(schema="orders", comment="Файлы исполнений")
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[Optional[str]] = mapped_column(comment="Название файла")
+    file_name: Mapped[Optional[str]] = mapped_column(comment="Имя файла")
+    exec_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("orders.executions.id", ondelete="CASCADE"), comment="ID исполнения"
+    )
+    created: Mapped[Optional[datetime]] = mapped_column(
+        comment="Дата создания", default=datetime.utcnow
+    )
+    ext: Mapped[Optional[str]] = mapped_column(comment="Расширение файла")
+    type: Mapped[Optional[int]] = mapped_column(comment="Тип файла")
+    length: Mapped[Optional[int]] = mapped_column(comment="Размер файла")
+    path: Mapped[Optional[str]] = mapped_column(comment="Путь к файлу")
+
+    # Relationship to execution
+    execution: Mapped["Executions"] = relationship(
+        "Executions", lazy="selectin", foreign_keys=[exec_id]
     )

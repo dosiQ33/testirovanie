@@ -1,8 +1,7 @@
 from typing import Optional, List
-from datetime import date
+from datetime import date, datetime
 from pydantic import BaseModel
 from app.modules.common.dto import BaseDto, BasestDto
-from app.modules.common.utils import SerializedGeojson
 
 
 class DicOrderStatusDto(BasestDto):
@@ -140,3 +139,81 @@ class OrderPatchDto(BaseModel):
     order_desc: Optional[str] = None
     step_count: Optional[int] = None
     sign: Optional[str] = None
+
+
+class ExecutionsDto(BaseDto):
+    """DTO for displaying executions"""
+
+    exec_date: Optional[date] = None
+    exec_text: Optional[str] = None
+    order_id: Optional[int] = None
+    exec_num: Optional[int] = None
+    employee_id: Optional[int] = None
+    is_accepted: Optional[bool] = None
+    sign: Optional[str] = None
+
+    # Relationship
+    order: Optional[OrdersDto] = None
+
+
+class ExecutionsCreateDto(BasestDto):
+    """DTO for creating executions"""
+
+    exec_date: Optional[date] = None
+    exec_text: Optional[str] = None
+    order_id: Optional[int] = None
+    exec_num: Optional[int] = None
+    employee_id: Optional[int] = None
+    is_accepted: Optional[bool] = None
+    sign: Optional[str] = None
+
+
+class ExecutionsFilterDto(BasestDto):
+    """DTO for filtering executions"""
+
+    exec_date_from: Optional[date] = None
+    exec_date_to: Optional[date] = None
+    order_id: Optional[int] = None
+    exec_num: Optional[int] = None
+    employee_id: Optional[int] = None
+    is_accepted: Optional[bool] = None
+
+
+class ExecFilesDto(BaseDto):
+    """DTO for displaying exec files"""
+
+    name: Optional[str] = None
+    file_name: Optional[str] = None
+    exec_id: Optional[int] = None
+    created: Optional[datetime] = None
+    ext: Optional[str] = None
+    type: Optional[int] = None
+    length: Optional[int] = None
+    path: Optional[str] = None
+
+    # Relationship
+    execution: Optional[ExecutionsDto] = None
+
+
+class ExecFilesCreateDto(BasestDto):
+    """DTO for creating exec files"""
+
+    name: Optional[str] = None
+    file_name: Optional[str] = None
+    exec_id: Optional[int] = None
+    ext: Optional[str] = None
+    type: Optional[int] = None
+    length: Optional[int] = None
+    path: Optional[str] = None
+
+
+class ExecFilesFilterDto(BasestDto):
+    """DTO for filtering exec files"""
+
+    exec_id: Optional[int] = None
+    name: Optional[str] = None
+    file_name: Optional[str] = None
+    ext: Optional[str] = None
+    type: Optional[int] = None
+    created_from: Optional[datetime] = None
+    created_to: Optional[datetime] = None

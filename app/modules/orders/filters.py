@@ -3,6 +3,8 @@ from datetime import date
 from fastapi_filter import FilterDepends, with_prefix
 from fastapi_filter.contrib.sqlalchemy import Filter
 from .models import (
+    ExecFiles,
+    Executions,
     Risks,
     DicRiskDegree,
     DicRiskType,
@@ -106,3 +108,28 @@ class OrdersFilter(Filter):
 
     class Constants(Filter.Constants):
         model = Orders
+
+
+class ExecutionsFilter(Filter):
+    id: Optional[int] = None
+    exec_date: Optional[date] = None
+    order_id: Optional[int] = None
+    exec_num: Optional[int] = None
+    employee_id: Optional[int] = None
+    is_accepted: Optional[bool] = None
+
+    class Constants(Filter.Constants):
+        model = Executions
+
+
+class ExecFilesFilter(Filter):
+    id: Optional[int] = None
+    exec_id: Optional[int] = None
+    name: Optional[str] = None
+    file_name: Optional[str] = None
+    ext: Optional[str] = None
+    type: Optional[int] = None
+
+    class Constants(Filter.Constants):
+        model = ExecFiles
+        search_model_fields = ["name", "file_name"]

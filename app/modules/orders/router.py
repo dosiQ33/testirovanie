@@ -11,6 +11,12 @@ from .dtos import (
     DicOrderTypeDto,
     DicRiskDegreeDto,
     DicRiskNameDto,
+    ExecFilesCreateDto,
+    ExecFilesDto,
+    ExecFilesFilterDto,
+    ExecutionsCreateDto,
+    ExecutionsDto,
+    ExecutionsFilterDto,
     OrderPatchDto,
     DicRiskTypeDto,
     RisksDto,
@@ -28,6 +34,8 @@ from .models import (
     DicRiskDegree,
     DicRiskName,
     DicRiskType,
+    ExecFiles,
+    Executions,
     Risks,
     Orders,
 )
@@ -37,10 +45,12 @@ from .repository import (
     DicRiskDegreeRepo,
     DicRiskNameRepo,
     DicRiskTypeRepo,
+    ExecFilesRepo,
+    ExecutionsRepo,
     RisksRepo,
     OrdersRepo,
 )
-from .filters import RisksFilter, OrdersFilter
+from .filters import ExecFilesFilter, ExecutionsFilter, RisksFilter, OrdersFilter
 
 
 router = APIRouter(prefix="/orders")
@@ -151,7 +161,6 @@ class RisksRouter(APIRouter):
         """
         repo = RisksRepo(session)
 
-        # Проверяем существование записи
         existing_risk = await repo.get_risk_by_id(risk_id)
         if not existing_risk:
             raise HTTPException(
@@ -159,7 +168,6 @@ class RisksRouter(APIRouter):
                 detail=f"Риск с ID {risk_id} не найден",
             )
 
-        # Обновляем запись
         updated_count = await repo.update_risk_order(risk_id, update_data)
 
         if updated_count == 0:
@@ -283,6 +291,141 @@ class OrdersRouter(APIRouter):
         return OrdersDto.model_validate(reloaded_order)
 
 
+class ExecutionsRouter(APIRouter):
+    sub_router = APIRouter(prefix="/executions", tags=["orders: executions"])
+    base_router = BaseCRUDRouter(
+        "executions",
+        Executions,
+        ExecutionsRepo,
+        ExecutionsDto,
+        ExecutionsFilter,
+        tags=["orders: executions"],
+    )
+
+    def __init__(self):
+        super().__init__()
+        self.include_router(self.sub_router)
+        self.include_router(self.base_router)
+
+    @sub_router.post("/")
+    async def create_execution(
+        execution_data: ExecutionsCreateDto,
+        session: AsyncSession = Depends(get_session_with_commit),
+    ) -> ExecutionsDto:
+        """
+        Create new execution
+
+        - **exec_date**: execution date
+        - **exec_text**: execution text
+        - **order_id**: order ID
+        - **exec_num**: execution number
+        - **employee_id**: employee ID
+        - **is_accepted**: accepted status
+        - **sign**: signature
+        """
+        repo = ExecutionsRepo(session)
+        new_execution = await repo.add(execution_data)
+        reloaded_execution = await repo.get_one_by_id(new_execution.id)
+        return ExecutionsDto.model_validate(reloaded_execution)
+
+    @sub_router.get("/filter")
+    @cache(expire=cache_ttl, key_builder=request_key_builder)
+    async def filter_executions(
+        filters: Annotated[ExecutionsFilterDto, Query()],
+        session: AsyncSession = Depends(get_session_with_commit),
+    ) -> List[ExecutionsDto]:
+        """
+        Get executions with filtering
+
+        - **exec_date_from**: execution date from
+        - **exec_date_to**: execution date to
+        - **order_id**: order ID
+        - **exec_num**: execution number
+        - **employee_id**: employee ID
+        - **is_accepted**: accepted status
+        """
+        response = await ExecutionsRepo(session).filter_executions(filters)
+        return [ExecutionsDto.model_validate(item) for item in response]
+
+    @sub_router.get("/by-order/{order_id}")
+    @cache(expire=cache_ttl, key_builder=request_key_builder)
+    async def get_executions_by_order(
+        order_id: int,
+        session: AsyncSession = Depends(get_session_with_commit),
+    ) -> List[ExecutionsDto]:
+        """Get all executions for a specific order"""
+        response = await ExecutionsRepo(session).get_by_order_id(order_id)
+        return [ExecutionsDto.model_validate(item) for item in response]
+
+
+class ExecFilesRouter(APIRouter):
+    sub_router = APIRouter(prefix="/exec-files", tags=["orders: exec-files"])
+    base_router = BaseCRUDRouter(
+        "exec-files",
+        ExecFiles,
+        ExecFilesRepo,
+        ExecFilesDto,
+        ExecFilesFilter,
+        tags=["orders: exec-files"],
+    )
+
+    def __init__(self):
+        super().__init__()
+        self.include_router(self.sub_router)
+        self.include_router(self.base_router)
+
+    @sub_router.post("/")
+    async def create_exec_file(
+        file_data: ExecFilesCreateDto,
+        session: AsyncSession = Depends(get_session_with_commit),
+    ) -> ExecFilesDto:
+        """
+        Create new execution file
+
+        - **name**: file display name
+        - **file_name**: actual file name
+        - **exec_id**: execution ID
+        - **ext**: file extension
+        - **type**: file type
+        - **length**: file size
+        - **path**: file path
+        """
+        repo = ExecFilesRepo(session)
+        new_file = await repo.add(file_data)
+        reloaded_file = await repo.get_one_by_id(new_file.id)
+        return ExecFilesDto.model_validate(reloaded_file)
+
+    @sub_router.get("/filter")
+    @cache(expire=cache_ttl, key_builder=request_key_builder)
+    async def filter_exec_files(
+        filters: Annotated[ExecFilesFilterDto, Query()],
+        session: AsyncSession = Depends(get_session_with_commit),
+    ) -> List[ExecFilesDto]:
+        """
+        Get execution files with filtering
+
+        - **exec_id**: execution ID
+        - **name**: file display name
+        - **file_name**: actual file name
+        - **ext**: file extension
+        - **type**: file type
+        - **created_from**: created date from
+        - **created_to**: created date to
+        """
+        response = await ExecFilesRepo(session).filter_exec_files(filters)
+        return [ExecFilesDto.model_validate(item) for item in response]
+
+    @sub_router.get("/by-execution/{exec_id}")
+    @cache(expire=cache_ttl, key_builder=request_key_builder)
+    async def get_files_by_execution(
+        exec_id: int,
+        session: AsyncSession = Depends(get_session_with_commit),
+    ) -> List[ExecFilesDto]:
+        """Get all files for a specific execution"""
+        response = await ExecFilesRepo(session).get_by_exec_id(exec_id)
+        return [ExecFilesDto.model_validate(item) for item in response]
+
+
 # Подключение всех роутеров
 router.include_router(dic_order_status_router)
 router.include_router(dic_order_type_router)
@@ -291,3 +434,5 @@ router.include_router(dic_risk_name_router)
 router.include_router(dic_risk_type_router)
 router.include_router(RisksRouter())
 router.include_router(OrdersRouter())
+router.include_router(ExecutionsRouter())
+router.include_router(ExecFilesRouter())

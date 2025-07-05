@@ -131,6 +131,8 @@ class EsfSeller(BaseModel):
     total_amount: Mapped[float] = mapped_column(comment="Оборот", nullable=True, default=0)
     nds_amount: Mapped[float] = mapped_column(comment="Оборот НДС", nullable=True, default=0)
 
+    num_esf: Mapped[int] = mapped_column(comment="количество ЕСФ", nullable=True, default=0)
+
 
 class EsfSellerDaily(BaseModel):
     __table_args__ = dict(comment="ЭСФ реализация за 1 день")
@@ -141,6 +143,27 @@ class EsfSellerDaily(BaseModel):
 
     total_amount: Mapped[float] = mapped_column(comment="Оборот", nullable=True, default=0)
     nds_amount: Mapped[float] = mapped_column(comment="Оборот НДС", nullable=True, default=0)
+
+    num_esf: Mapped[int] = mapped_column(comment="количество ЕСФ", nullable=True, default=0)
+
+
+class EsfSellerMonth(BasestModel):
+    __tablename__ = "esf_seller_month"
+    __table_args__ = dict(comment="ЭСФ реализация за месяц")
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+
+    """Организация"""
+    organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id"), comment="Организация", nullable=False)
+
+    ugd_id: Mapped[int] = mapped_column(ForeignKey("ugds.id"), comment="УГД", nullable=False)
+
+    month_year: Mapped[date] = mapped_column(comment="месяц и год приобретение", nullable=False)
+
+    total_amount: Mapped[float] = mapped_column(comment="Оборот", nullable=True, default=0)
+    nds_amount: Mapped[float] = mapped_column(comment="Оборот НДС", nullable=True, default=0)
+
+    num_esf: Mapped[int] = mapped_column(comment="количество ЕСФ", nullable=True, default=0)
 
 
 class EsfBuyer(BaseModel):
@@ -160,6 +183,23 @@ class EsfBuyerDaily(BaseModel):
     """Организация"""
     organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id"), comment="Организация", nullable=False)
     organization: Mapped["Organizations"] = relationship("Organizations", back_populates="esf_buyer_daily", lazy="selectin")
+
+    total_amount: Mapped[float] = mapped_column(comment="Оборот", nullable=True, default=0)
+    nds_amount: Mapped[float] = mapped_column(comment="Оборот НДС", nullable=True, default=0)
+
+
+class EsfBuyerMonth(BasestModel):
+    __tablename__ = "esf_buyer_month"
+    __table_args__ = dict(comment="ЭСФ приобретение за месяц")
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+
+    """Организация"""
+    organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id"), comment="Организация", nullable=False)
+
+    ugd_id: Mapped[int] = mapped_column(ForeignKey("ugds.id"), comment="УГД", nullable=False)
+
+    month_year: Mapped[date] = mapped_column(comment="месяц и год приобретение", nullable=False)
 
     total_amount: Mapped[float] = mapped_column(comment="Оборот", nullable=True, default=0)
     nds_amount: Mapped[float] = mapped_column(comment="Оборот НДС", nullable=True, default=0)
@@ -202,6 +242,12 @@ class Receipts(BaseModel):
     payment_type: Mapped[int] = mapped_column(comment="Вид оплаты", nullable=True)
     # updated_date: Mapped[datetime] = mapped_column(comment="Дата заливки данных", nullable=True)
 
+    # SZPT
+    # has_szpt_violation: Mapped[bool] = mapped_column(comment="Нарушение СЗПТ", nullable=True, default=False)
+    # current_max_price: Mapped[float] = mapped_column(comment="Максимальная цена товара на текущий момент", nullable=True)
+    # szpt: Mapped[str] = mapped_column(comment="СЗПТ", nullable=True)
+    # szpt_id: Mapped[int] = mapped_column(comment="СЗПТ ID", nullable=True)
+
 
 class ReceiptsAnnual(BaseModel):
     __table_args__ = dict(comment="Чеки за год")
@@ -225,19 +271,3 @@ class ReceiptsDaily(BaseModel):
     check_sum: Mapped[float] = mapped_column(comment="Общая сумма", nullable=True)
     check_count: Mapped[int] = mapped_column(comment="Количество чеков", nullable=True)
     date_check: Mapped[date] = mapped_column(Date, comment="Дата", nullable=True)
-
-
-class Populations(BasestModel):
-    __tablename__ = "populations"
-    __table_args__ = dict(comment="население")
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-
-    oblast_id: Mapped[int] = mapped_column(ForeignKey("ext.KAZGEODESY_RK_OBLASTI.id"), comment="области", nullable=True)
-    raion_id: Mapped[int] = mapped_column(ForeignKey("ext.KAZGEODESY_RK_RAIONY.id"), comment="районы", nullable=True)
-
-    date_: Mapped[date] = mapped_column(name="date", comment="дата", nullable=True)
-
-    people_num: Mapped[int] = mapped_column(Integer, comment="число людей", nullable=True)
-    male_num: Mapped[int] = mapped_column(Integer, comment="число мужчин", nullable=True)
-    female_num: Mapped[int] = mapped_column(Integer, comment="число женщин", nullable=True)

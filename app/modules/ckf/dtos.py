@@ -11,10 +11,9 @@ from pydantic import Field, ConfigDict, field_serializer
 from typing import Any, List, Optional
 
 
-from app.modules.common.dto import BasestDto, DtoWithShape, BaseDto
+from app.modules.common.dto import BasestDto, DtoWithShape, BaseDto, ByMonthAndRegionsResponseDto
 from app.modules.ext.okeds.dtos import OkedsDto
 from app.modules.nsi.dtos import CommonRefDto, SimpleRefDto
-from .enums import RegionEnum
 
 class KkmsDto(DtoWithShape):
     organization_id: int
@@ -73,22 +72,6 @@ class OrganizationsWithKkmsDto(OrganizationDto):
     kkms: List[KkmsDto] = Field(default_factory=list)
 
 
-class CountByYearDto(BasestDto):
-    territory: str
-    year: int
-
-class CountByRegionsDto(CountByYearDto):
-    territory: str
-    year: int
-    region: RegionEnum
-    
-class CountResponseDto(BasestDto):
-    count: int
-    
-class ByMonthAndRegionsResponseDto(CountResponseDto):
-    month: int
-
-
 class OrganizationsFilterDto(BasestDto):
     territory: Optional[str] = None
     iin_bin: Optional[str] = None
@@ -141,6 +124,22 @@ class FnoDto(BaseDto):
     fno_912_00: Optional[float] = None
     fno_913_00: Optional[float] = None
     fno_920_00: Optional[float] = None
+    
+    
+class FnoStatisticsDto(BasestDto):
+    turnover_current_year: float
+    turnover_prev_year: float
+
+
+class FnoBarChartItemDto(BasestDto):
+    fno_code: str
+    amount: float
+
+
+class FnoBarChartDto(BasestDto):
+    title: str
+    year: int
+    data: List[FnoBarChartItemDto]
 
 
 class RiskInfosDto(BaseDto):
@@ -176,6 +175,22 @@ class EsfSellerBuyerDto(BaseDto):
 
     total_amount: float
     nds_amount: float
+
+
+class EsfMonthDto(BasestDto):
+    month: int
+    turnover: float
+
+class EsfStatisticsDto(BasestDto):
+    esf_seller_daily_amount: float
+    esf_seller_amount: float
+    esf_buyer_daily_amount: float
+    esf_buyer_amount: float
+    
+    
+class EsfMontlyStatisticsDto(BasestDto):
+    esf_seller_monthly: List[EsfMonthDto]
+    esf_buyer_montly: List[EsfMonthDto]
 
 
 class OrganizationEsfSellerBuyerDto(BaseDto):
@@ -230,25 +245,6 @@ class ReceiptsSummaryDto(BaseDto):
     check_count: int
 
 
-class PopulationDto(BasestDto):
-    id: int
-    oblast_id: Optional[int]
-    raion_id: Optional[int]
-    date_: Optional[date]
-
-    people_num: Optional[int]
-    male_num: Optional[int]
-    female_num: Optional[int]
-
-
-class PopulationByRegionsResponseDto(BasestDto):
-    sum_people: int
-    sum_male: int
-    sum_female: int
-
-class PopulationMonthlyByYearAndRegionsResponseDto(BasestDto):
-    monthly: List[ByMonthAndRegionsResponseDto]
-
 class GetReceiptByFiscalKkmRegNumberDto(BasestDto):
     fiskal_sign: int = Field()
     kkm_reg_number: str
@@ -274,9 +270,3 @@ class GetReceiptByFiscalBinDto(BasestDto):
     @field_serializer("fiskal_sign")
     def serialize_country(self, fiskal_sign: Any, _info):
         return fiskal_sign
-
-
-class ByYearAndRegionsFilterDto(BasestDto):
-    territory: str
-    period_start: date
-    period_end: date

@@ -55,7 +55,6 @@ class EmployeesDto(BasestDto):
     role_ref: Optional[DicRolesDto] = None
 
 
-# Create DTOs for creating/updating records (without ID)
 class DicUlCreateDto(BasestDto):
     parent_id: Optional[int] = None
     bin: Optional[str] = None
@@ -94,6 +93,21 @@ class EmployeesCreateDto(BasestDto):
     deleted: Optional[bool] = None
     blocked: Optional[bool] = None
     empl_create_date: Optional[datetime] = None
+    employee_position: Optional[str] = None
+    employee_department: Optional[str] = None
+    employee_status: Optional[str] = None
+
+
+class EmployeesFilterDto(BasestDto):
+    """DTO for filtering employees"""
+
+    id: Optional[int] = None
+    fl_id: Optional[int] = None
+    ul_id: Optional[int] = None
+    role_id: Optional[int] = None
+    login: Optional[str] = None
+    deleted: Optional[bool] = None
+    blocked: Optional[bool] = None
     employee_position: Optional[str] = None
     employee_department: Optional[str] = None
     employee_status: Optional[str] = None

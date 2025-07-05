@@ -15,12 +15,16 @@ from loguru import logger
 from fastapi_cache.decorator import cache
 
 from app.database.deps import get_session_with_commit, get_session_without_commit
-from app.modules.common.dto import Bbox
+from app.modules.common.dto import Bbox, CountResponseDto, CountByTerritoryAndRegionsDto, ByYearAndRegionsFilterDto, CountByYearAndRegionsDto
 from app.modules.common.router import BaseCRUDRouter, ORJsonCoder, request_key_builder, cache_ttl
+from app.modules.common.mappers import to_regions_filter_dto
 from .dtos import (
     EsfSellerBuyerDto,
     EsfSellerBuyerSimpleDto,
     FnoDto,
+    FnoStatisticsDto,
+    FnoBarChartDto,
+    FnoBarChartItemDto,
     GetReceiptByFiscalBinDto,
     GetReceiptByFiscalKkmRegNumberDto,
     GetReceiptByFiscalKkmSerialNumberDto,
@@ -29,17 +33,14 @@ from .dtos import (
     KkmsFilterDto,
     OrganizationDto,
     OrganizationsFilterDto,
-    CountByYearDto,
-    CountByRegionsDto,
-    CountResponseDto,
     OrganizationsByYearAndRegionsResponseDto,
     ReceiptsAnnualDto,
     ReceiptsDailyDto,
     ReceiptsDto,
     RiskInfosDto,
-    PopulationDto,
-    PopulationByRegionsResponseDto,
-    PopulationMonthlyByYearAndRegionsResponseDto
+    EsfStatisticsDto,
+    EsfMonthDto,
+    EsfMontlyStatisticsDto
 )
 from .repository import (
     EsfBuyerDailyRepo,
@@ -53,10 +54,10 @@ from .repository import (
     ReceiptsDailyRepo,
     ReceiptsRepo,
     RiskInfosRepo,
-    PopulationRepo
+    EsfStatisticsRepo
 )
-from .models import EsfBuyer, EsfBuyerDaily, EsfSeller, EsfSellerDaily, Organizations, Kkms, Receipts, RiskInfos, Populations  # noqa
-from .mappers import to_regions_filter_dto, to_organization_count_by_regions_response, to_population_count_by_regions_response
+from .models import EsfBuyer, EsfBuyerDaily, EsfSeller, EsfSellerDaily, Organizations, Kkms, Receipts, RiskInfos  # noqa
+from .mappers import to_organization_count_by_regions_response
 from datetime import date
 
 router = APIRouter(prefix="/ckf")
@@ -206,7 +207,7 @@ class OrganizationsRouter(APIRouter):
     @sub_router.get('/count/monthly/by-year-regions', response_model=OrganizationsByYearAndRegionsResponseDto)
     @cache(expire=cache_ttl, key_builder=request_key_builder)  # Кэширование на 24 часа    
     async def count_monthly_by_regions(
-        count_dto: Annotated[CountByYearDto, Query()],
+        count_dto: Annotated[CountByYearAndRegionsDto, Query()],
         session: AsyncSession = Depends(get_session_without_commit)
     ):
           
@@ -220,7 +221,7 @@ class OrganizationsRouter(APIRouter):
     @sub_router.get('/count/by-year-regions', response_model=CountResponseDto)
     @cache(expire=cache_ttl, key_builder=request_key_builder)  # Кэширование на 24 часа    
     async def count_by_regions(
-        count_dto: Annotated[CountByYearDto, Query()],
+        count_dto: Annotated[CountByYearAndRegionsDto, Query()],
         session: AsyncSession = Depends(get_session_without_commit)
     ):
           
@@ -228,7 +229,7 @@ class OrganizationsRouter(APIRouter):
         date_ = date(count_dto.year, 12, 31) if not is_current_year else None
 
         count = await OrganizationsRepo(session).count_by_year_and_regions(
-            territory=count_dto.territory, date_=date_
+            count_dto=count_dto, date_=date_
         )
         
         return CountResponseDto(
@@ -341,6 +342,53 @@ class KkmsRouter(APIRouter):
         ]
 
         return monthly
+    
+
+class FnoStatisticsRouter(APIRouter):
+    sub_router = APIRouter(prefix="/fno-statistics", tags=["ckf: fno-statistics"])
+    
+    def __init__(self):
+        super().__init__()
+        self.include_router(self.sub_router)
+
+    """Own routes"""
+    
+    @sub_router.get("count/aggregation/by-regions", response_model=FnoStatisticsDto)
+    @cache(expire=cache_ttl, key_builder=request_key_builder)  # Кэширование на 24 часа
+    async def get_fno_statistics(
+        count_dto: Annotated[CountByTerritoryAndRegionsDto, Query()],
+        session: AsyncSession = Depends(get_session_without_commit),
+    ):
+        current_year = 2025 # как я понял пока будет возможность только посмотреть 2025-2024 года
+        prev_year = 2024 
+        
+        result = await FnoRepo(session).get_fno_aggregation_statistics(
+            filters=count_dto,
+            current_year=current_year,
+            prev_year=prev_year
+        )
+        
+        return FnoStatisticsDto(**result._mapping)
+
+    @sub_router.get("/bar-chart", response_model=FnoBarChartDto)
+    @cache(expire=cache_ttl, key_builder=request_key_builder)  # Кэширование на 24 часа
+    async def get_fno_bar_chart(
+        count_dto: Annotated[CountByTerritoryAndRegionsDto, Query()],
+        session: AsyncSession = Depends(get_session_without_commit),
+    ):
+        """Get FNO data by individual fields for bar chart visualization"""
+        prev_year = 2024  # Previous year as specified
+        
+        chart_data = await FnoRepo(session).get_fno_bar_chart_data(
+            filters=count_dto,
+            year=prev_year
+        )
+        
+        return FnoBarChartDto(
+            title="Оборот по ФНО за предыдущий год",
+            year=prev_year,
+            data=[FnoBarChartItemDto(**item) for item in chart_data]
+        )
 
 
 class EsfSellerRouter(APIRouter):
@@ -431,6 +479,54 @@ class EsfBuyerDailyRouter(APIRouter):
         return await EsfSellerRepo(session).get_by_organization_id(id)
 
 
+class EsfStatisticsRouter(APIRouter):
+    sub_router = APIRouter(prefix="/esf-statistics", tags=["ckf: esf-statistics"])
+    
+    def __init__(self):
+        super().__init__()
+        self.include_router(self.sub_router)
+
+    """Own routes"""
+
+    @sub_router.get("count/aggregation/by-regions", response_model=EsfStatisticsDto)
+    @cache(expire=cache_ttl, key_builder=request_key_builder)  # Кэширование на 24 часа
+    async def get_esf_statistics(
+        count_dto: Annotated[CountByTerritoryAndRegionsDto, Query()],
+        session: AsyncSession = Depends(get_session_without_commit),
+    ):
+        result = await EsfStatisticsRepo(session).get_esf_statistics(count_dto)
+        
+        return EsfStatisticsDto(
+            esf_seller_daily_amount=result["esf_seller_daily"].turnover,
+            esf_seller_amount=result["esf_seller"].turnover,
+            esf_buyer_daily_amount=result["esf_buyer_daily"].turnover,
+            esf_buyer_amount=result["esf_buyer"].turnover
+        )
+
+    @sub_router.get("count/monthly/by-regions", response_model=EsfMontlyStatisticsDto)
+    @cache(expire=cache_ttl, key_builder=request_key_builder)  # Кэширование на 24 часа
+    async def get_esf_statistics(
+        count_dto: Annotated[CountByTerritoryAndRegionsDto, Query()],
+        session: AsyncSession = Depends(get_session_without_commit),
+    ):
+        period_start = date(2025, 1, 1) # пока есть данные только за 2025 год
+        period_end = date(2025, 12, 1)
+        
+        filters = ByYearAndRegionsFilterDto(
+            territory=count_dto.territory,
+            period_start=period_start,
+            period_end=period_end,
+            region=count_dto.region
+        )
+                
+        result = await EsfStatisticsRepo(session).get_esf_statistics_monthly(filters=filters)
+        
+        return EsfMontlyStatisticsDto(
+            esf_seller_monthly=[EsfMonthDto(month=item["date_"].month, turnover=item["turnover"]) for item in result["esf_seller_month"]],
+            esf_buyer_montly=[EsfMonthDto(month=item["date_"].month, turnover=item["turnover"]) for item in result["esf_buyer_month"]]
+        )
+
+
 class RiskInfosRouter(APIRouter):
     sub_router = APIRouter(prefix="/risk-infos", tags=["ckf: risk-infos"])
     base_router = BaseCRUDRouter("risk-infos", RiskInfos, RiskInfosRepo, RiskInfosDto, tags=["ckf: risk-infos"])
@@ -517,86 +613,15 @@ class ReceiptsRouter(APIRouter):
         return [ReceiptsDto.model_validate(item) for item in response]
     
 
-class PopulationsRouter(APIRouter):
-    sub_router = APIRouter(prefix="/populations", tags=["ckf: populations"])
-    base_router = BaseCRUDRouter("populations", Populations, PopulationRepo, PopulationDto, tags=["ckf: populations"])
-
-    def __init__(self):
-        super().__init__()
-
-        self.include_router(self.sub_router)
-        self.include_router(self.base_router)
-        
-    @sub_router.get("/count/by-year-regions", response_model=PopulationByRegionsResponseDto)
-    @cache(expire=cache_ttl, key_builder=request_key_builder)  
-    async def count_by_regions(
-        count_dto: Annotated[CountByRegionsDto, Query()],
-        session: AsyncSession = Depends(get_session_without_commit)
-    ):
-        repository = PopulationRepo(session)
-        is_current_year = (count_dto.year == date.today().year)
-        
-        if is_current_year:
-            MAX_DATES = [
-                date(count_dto.year, 1, 1), date(count_dto.year, 4, 1),
-                date(count_dto.year, 7, 1), date(count_dto.year, 10, 1)
-            ]
-                        
-            populations = await repository.get_many_current_year_maximum_by_region(
-                count_dto=count_dto
-            )
-        
-            gender_populations = await repository.get_many_current_year_in_by_region(
-                count_dto=count_dto, dates=MAX_DATES
-            )
-        else:
-            POPULATION_DATE = date(count_dto.year, 12, 1)
-            GENDER_DATE = date(count_dto.year, 10, 1)
-            
-            populations = await repository.get_many_past_year_by_region(
-                count_dto=count_dto, date_=POPULATION_DATE
-            )
-            
-            gender_populations = await repository.get_many_past_year_by_region(
-                count_dto=count_dto, date_=GENDER_DATE
-            )
-        
-        sum_people = sum(population.people_num for population in populations if population.people_num)
-        sum_male = sum(population.male_num for population in gender_populations if population.male_num)
-        sum_female = sum(population.female_num for population in gender_populations if population.female_num)
-        
-        return PopulationByRegionsResponseDto(
-            sum_people=sum_people,
-            sum_male=sum_male,
-            sum_female=sum_female
-        )
-
-    @sub_router.get("/count/monthly/by-year-regions", response_model=PopulationMonthlyByYearAndRegionsResponseDto)
-    @cache(expire=cache_ttl, key_builder=request_key_builder)  
-    async def count_monthly_by_regions(
-        count_dto: Annotated[CountByRegionsDto, Query()],
-        session: AsyncSession = Depends(get_session_without_commit)
-    ):  
-        is_current_year = (count_dto.year == date.today().year)
-        filters = to_regions_filter_dto(count_dto=count_dto, is_current_year=is_current_year)
-        
-        rows = await PopulationRepo(session).get_population_monthly_by_region(
-            region=count_dto.region, filters=filters
-        )
-        
-        return to_population_count_by_regions_response(rows=rows)
-        
-
-
 router.include_router(OrganizationsRouter())
 router.include_router(KkmsRouter())
 router.include_router(ReceiptsRouter())
+router.include_router(FnoStatisticsRouter())
 
 router.include_router(EsfSellerRouter())
 router.include_router(EsfSellerDailyRouter())
 router.include_router(EsfBuyerRouter())
 router.include_router(EsfBuyerDailyRouter())
+router.include_router(EsfStatisticsRouter())
 
 router.include_router(RiskInfosRouter())
-
-router.include_router(PopulationsRouter())

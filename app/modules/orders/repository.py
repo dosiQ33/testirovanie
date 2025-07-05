@@ -5,6 +5,8 @@ import sqlalchemy
 from loguru import logger
 from app.modules.common.repository import BaseRepository
 from .dtos import (
+    ExecFilesFilterDto,
+    ExecutionsFilterDto,
     RisksFilterDto,
     RiskUpdateDto,
     RiskBulkUpdateDto,
@@ -12,6 +14,8 @@ from .dtos import (
     OrderPatchDto,
 )
 from .models import (
+    ExecFiles,
+    Executions,
     Risks,
     DicRiskDegree,
     DicRiskType,
@@ -245,3 +249,114 @@ class OrdersRepo(BaseRepository):
             raise HTTPException(
                 status_code=500, detail=f"Ошибка при обновлении поручения: {str(e)}"
             )
+
+
+class ExecutionsRepo(BaseRepository):
+    model = Executions
+
+    async def filter_executions(self, filters: ExecutionsFilterDto):
+        """Get executions with custom filtering"""
+        try:
+            query = select(self.model)
+
+            if filters.exec_date_from is not None:
+                query = query.filter(self.model.exec_date >= filters.exec_date_from)
+
+            if filters.exec_date_to is not None:
+                query = query.filter(self.model.exec_date <= filters.exec_date_to)
+
+            if filters.order_id is not None:
+                query = query.filter(self.model.order_id == filters.order_id)
+
+            if filters.exec_num is not None:
+                query = query.filter(self.model.exec_num == filters.exec_num)
+
+            if filters.employee_id is not None:
+                query = query.filter(self.model.employee_id == filters.employee_id)
+
+            if filters.is_accepted is not None:
+                query = query.filter(self.model.is_accepted == filters.is_accepted)
+
+            query = query.order_by(self.model.exec_date.desc())
+
+            result = await self._session.execute(query)
+            records = result.unique().scalars().all()
+
+            logger.info(f"Найдено {len(records)} исполнений.")
+            return records
+
+        except SQLAlchemyError as e:
+            logger.error(f"Ошибка при поиске исполнений по фильтрам {filters}: {e}")
+            raise
+
+    async def get_by_order_id(self, order_id: int):
+        """Get executions by order ID"""
+        try:
+            query = select(self.model).filter(self.model.order_id == order_id)
+            result = await self._session.execute(query)
+            records = result.unique().scalars().all()
+
+            logger.info(f"Найдено {len(records)} исполнений для поручения {order_id}.")
+            return records
+        except SQLAlchemyError as e:
+            logger.error(f"Ошибка при поиске исполнений для поручения {order_id}: {e}")
+            raise
+
+
+class ExecFilesRepo(BaseRepository):
+    model = ExecFiles
+
+    async def filter_exec_files(self, filters: ExecFilesFilterDto):
+        """Get exec files with custom filtering"""
+        try:
+            query = select(self.model)
+
+            if filters.exec_id is not None:
+                query = query.filter(self.model.exec_id == filters.exec_id)
+
+            if filters.name is not None:
+                query = query.filter(self.model.name.ilike(f"%{filters.name}%"))
+
+            if filters.file_name is not None:
+                query = query.filter(
+                    self.model.file_name.ilike(f"%{filters.file_name}%")
+                )
+
+            if filters.ext is not None:
+                query = query.filter(self.model.ext == filters.ext)
+
+            if filters.type is not None:
+                query = query.filter(self.model.type == filters.type)
+
+            if filters.created_from is not None:
+                query = query.filter(self.model.created >= filters.created_from)
+
+            if filters.created_to is not None:
+                query = query.filter(self.model.created <= filters.created_to)
+
+            query = query.order_by(self.model.created.desc())
+
+            result = await self._session.execute(query)
+            records = result.unique().scalars().all()
+
+            logger.info(f"Найдено {len(records)} файлов исполнений.")
+            return records
+
+        except SQLAlchemyError as e:
+            logger.error(
+                f"Ошибка при поиске файлов исполнений по фильтрам {filters}: {e}"
+            )
+            raise
+
+    async def get_by_exec_id(self, exec_id: int):
+        """Get files by execution ID"""
+        try:
+            query = select(self.model).filter(self.model.exec_id == exec_id)
+            result = await self._session.execute(query)
+            records = result.unique().scalars().all()
+
+            logger.info(f"Найдено {len(records)} файлов для исполнения {exec_id}.")
+            return records
+        except SQLAlchemyError as e:
+            logger.error(f"Ошибка при поиске файлов для исполнения {exec_id}: {e}")
+            raise

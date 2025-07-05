@@ -1,5 +1,5 @@
 from fastapi_filter import FilterDepends, with_prefix
-from app.modules.main.models import Organizations, RiskInfos
+from app.modules.ckf.models import Organizations, RiskInfos
 from typing import Optional
 from fastapi_filter.contrib.sqlalchemy import Filter
 

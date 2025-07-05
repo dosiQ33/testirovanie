@@ -1,8 +1,8 @@
-from sqlalchemy import BigInteger, ForeignKey, Date
+from sqlalchemy import BigInteger, ForeignKey, Date, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import date, datetime
 
-from app.modules.common.models import BaseModel, BaseModelWithShapePoint, str_uniq
+from app.modules.common.models import BaseModel, BaseModelWithShapePoint, BasestModel, str_uniq
 from app.modules.nsi.models import Ugds, TaxRegimes, RegTypes, RiskDegrees
 from app.modules.ext.okeds.models import Okeds
 
@@ -43,6 +43,9 @@ class Organizations(BaseModelWithShapePoint):
     knn: Mapped[float] = mapped_column(comment="Коэффициент налоговой нагрузки", nullable=True)
     knn_co: Mapped[float] = mapped_column(comment="Коэффициент СО - среднеотраслевое значение КНН", nullable=True)
 
+    bin_root: Mapped[str] = mapped_column(comment="ИИН/БИН головного предприятия", nullable=True)
+    jur_fiz: Mapped[int] = mapped_column(comment="0 - ФЛ / 1 - ЮЛ", nullable=True)
+
     address: Mapped[str] = mapped_column(comment="Адрес", nullable=True)
 
     kkms: Mapped[list["Kkms"]] = relationship(back_populates="organization", lazy="selectin")
@@ -52,6 +55,43 @@ class Organizations(BaseModelWithShapePoint):
     esf_seller_daily: Mapped["EsfSellerDaily"] = relationship(back_populates="organization", lazy="selectin")
     esf_buyer: Mapped["EsfBuyer"] = relationship(back_populates="organization", lazy="selectin")
     esf_buyer_daily: Mapped["EsfBuyerDaily"] = relationship(back_populates="organization", lazy="selectin")
+
+
+class FnoTypes(BasestModel):
+    __tablename__ = "fno_types"
+    __table_args__ = dict(comment="Периоды ФНО")
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(comment="Наименование периода", nullable=True)
+
+
+class Fno(BasestModel):
+    __tablename__ = "fno"
+    __table_args__ = dict(comment="ФНО")
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+
+    """Организация"""
+    organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id"), comment="Организация", nullable=False)
+    organization: Mapped["Organizations"] = relationship("Organizations", lazy="selectin")
+
+    year: Mapped[int] = mapped_column(comment="Год", nullable=True)
+
+    """УГД"""
+    type_id: Mapped[int] = mapped_column(ForeignKey("fno_types.id"), comment="УГД", nullable=False)
+    type: Mapped["FnoTypes"] = relationship("FnoTypes", lazy="selectin")
+
+    fno_100_00: Mapped[float] = mapped_column(comment="Оборот по ФНО 100.00", nullable=True)
+    fno_110_00: Mapped[float] = mapped_column(comment="Оборот по ФНО 110.00", nullable=True)
+    fno_150_00: Mapped[float] = mapped_column(comment="Оборот по ФНО 150.00", nullable=True)
+    fno_180_00: Mapped[float] = mapped_column(comment="Оборот по ФНО 180.00", nullable=True)
+    fno_220_00: Mapped[float] = mapped_column(comment="Оборот по ФНО 220.00", nullable=True)
+    fno_300_00: Mapped[float] = mapped_column(comment="Оборот по ФНО 300.00", nullable=True)
+    fno_910_00: Mapped[float] = mapped_column(comment="Оборот по ФНО 910.00", nullable=True)
+    fno_911_00: Mapped[float] = mapped_column(comment="Оборот по ФНО 911.00", nullable=True)
+    fno_912_00: Mapped[float] = mapped_column(comment="Оборот по ФНО 912.00", nullable=True)
+    fno_913_00: Mapped[float] = mapped_column(comment="Оборот по ФНО 913.00", nullable=True)
+    fno_920_00: Mapped[float] = mapped_column(comment="Оборот по ФНО 920.00", nullable=True)
 
 
 class RiskInfos(BaseModel):
@@ -185,3 +225,19 @@ class ReceiptsDaily(BaseModel):
     check_sum: Mapped[float] = mapped_column(comment="Общая сумма", nullable=True)
     check_count: Mapped[int] = mapped_column(comment="Количество чеков", nullable=True)
     date_check: Mapped[date] = mapped_column(Date, comment="Дата", nullable=True)
+
+
+class Populations(BasestModel):
+    __tablename__ = "populations"
+    __table_args__ = dict(comment="население")
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+
+    oblast_id: Mapped[int] = mapped_column(ForeignKey("ext.KAZGEODESY_RK_OBLASTI.id"), comment="области", nullable=True)
+    raion_id: Mapped[int] = mapped_column(ForeignKey("ext.KAZGEODESY_RK_RAIONY.id"), comment="районы", nullable=True)
+
+    date_: Mapped[date] = mapped_column(name="date", comment="дата", nullable=True)
+
+    people_num: Mapped[int] = mapped_column(Integer, comment="число людей", nullable=True)
+    male_num: Mapped[int] = mapped_column(Integer, comment="число мужчин", nullable=True)
+    female_num: Mapped[int] = mapped_column(Integer, comment="число женщин", nullable=True)

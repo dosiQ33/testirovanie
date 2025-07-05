@@ -173,9 +173,18 @@ class BaseWithOrganizationRepository(BaseRepository):
             result = await self._session.execute(query)
             record = result.unique().scalar_one_or_none()
 
-            # logger.info(f"Найдено {len(record)} записей.")
-
             return record
+        except SQLAlchemyError as e:
+            logger.error(f"Ошибка при поиске всех записей по organization_id {id}: {e}")
+            raise
+
+    async def get_many_by_organization_id(self, id: int):
+        try:
+            query = select(self.model).filter_by(organization_id=id)
+            result = await self._session.execute(query)
+            records = result.unique().scalars().all()
+
+            return records
         except SQLAlchemyError as e:
             logger.error(f"Ошибка при поиске всех записей по organization_id {id}: {e}")
             raise

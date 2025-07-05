@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import Optional
 from sqlalchemy import ForeignKey, BigInteger, Integer, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from datetime import datetime
+from datetime import date, datetime
 
 from app.modules.common.models import BasestModel
 
@@ -12,11 +12,17 @@ class DicUl(BasestModel):
     __table_args__ = dict(schema="admin", comment="Справочник юридических лиц")
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    ul_bin: Mapped[Optional[str]] = mapped_column(comment="БИН")
-    ul_shortname: Mapped[Optional[str]] = mapped_column(comment="Краткое наименование")
-    ul_name: Mapped[Optional[str]] = mapped_column(comment="Полное наименование")
-    territories_id: Mapped[Optional[int]] = mapped_column(comment="ID территории")
-    ul_created_at: Mapped[Optional[datetime]] = mapped_column(comment="Дата создания")
+    parent_id: Mapped[Optional[int]] = mapped_column(
+        BigInteger, comment="Родительский ID"
+    )
+    bin: Mapped[Optional[str]] = mapped_column(comment="БИН")
+    shortname: Mapped[Optional[str]] = mapped_column(comment="Краткое наименование")
+    name: Mapped[Optional[str]] = mapped_column(comment="Полное наименование")
+    address: Mapped[Optional[str]] = mapped_column(comment="Адрес")
+    kato: Mapped[Optional[str]] = mapped_column(comment="КАТО")
+    oblast_id: Mapped[Optional[int]] = mapped_column(BigInteger, comment="ID области")
+    raion_id: Mapped[Optional[int]] = mapped_column(BigInteger, comment="ID района")
+    create_date: Mapped[Optional[date]] = mapped_column(comment="Дата создания")
 
 
 class DicRoles(BasestModel):
@@ -25,7 +31,7 @@ class DicRoles(BasestModel):
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     role_name: Mapped[Optional[str]] = mapped_column(comment="Название роли")
-    actions: Mapped[Optional[int]] = mapped_column(comment="Действия")
+    actions: Mapped[Optional[int]] = mapped_column(Integer, comment="Действия")
     description: Mapped[Optional[str]] = mapped_column(Text, comment="Описание")
 
 
@@ -34,12 +40,14 @@ class DicFl(BasestModel):
     __table_args__ = dict(schema="admin", comment="Справочник физических лиц")
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    fl_iin: Mapped[Optional[str]] = mapped_column(comment="ИИН")
-    fl_surname: Mapped[Optional[str]] = mapped_column(comment="Фамилия")
-    fl_name: Mapped[Optional[str]] = mapped_column(comment="Имя")
-    fl_patronomic: Mapped[Optional[str]] = mapped_column(comment="Отчество")
+    iin: Mapped[Optional[str]] = mapped_column(comment="ИИН")
+    surname: Mapped[Optional[str]] = mapped_column(comment="Фамилия")
+    name: Mapped[Optional[str]] = mapped_column(comment="Имя")
+    patronymic: Mapped[Optional[str]] = mapped_column(comment="Отчество")
+    date_of_birth: Mapped[Optional[date]] = mapped_column(comment="Дата рождения")
+    email: Mapped[Optional[str]] = mapped_column(Text, comment="Email")
     phone: Mapped[Optional[str]] = mapped_column(comment="Телефон")
-    fl_created_at: Mapped[Optional[datetime]] = mapped_column(comment="Дата создания")
+    create_date: Mapped[Optional[date]] = mapped_column(comment="Дата создания")
 
 
 class Employees(BasestModel):
@@ -47,30 +55,42 @@ class Employees(BasestModel):
     __table_args__ = dict(schema="admin", comment="Сотрудники")
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    fl_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("admin.dic_fl.id"), comment="Физическое лицо"
-    )
-    ul_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("admin.dic_ul.id"), comment="Юридическое лицо"
-    )
-    role_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("admin.dic_roles.id"), comment="Роль"
-    )
+    fl_id: Mapped[Optional[int]] = mapped_column(Integer, comment="Физическое лицо")
+    ul_id: Mapped[Optional[int]] = mapped_column(Integer, comment="Юридическое лицо")
+    role: Mapped[Optional[int]] = mapped_column(Integer, comment="Роль")
     login: Mapped[Optional[str]] = mapped_column(comment="Логин")
-    password_hash: Mapped[Optional[str]] = mapped_column(comment="Хеш пароля")
-    is_active: Mapped[Optional[bool]] = mapped_column(comment="Активен", default=True)
-    is_blocked: Mapped[Optional[bool]] = mapped_column(
+    password: Mapped[Optional[str]] = mapped_column(comment="Пароль")
+    deleted: Mapped[Optional[bool]] = mapped_column(comment="Удален", default=False)
+    blocked: Mapped[Optional[bool]] = mapped_column(
         comment="Заблокирован", default=False
     )
-    blocked_at: Mapped[Optional[datetime]] = mapped_column(comment="Время блокировки")
-    blocked_reason: Mapped[Optional[str]] = mapped_column(
-        Text, comment="Причина блокировки"
+    empl_create_date: Mapped[Optional[datetime]] = mapped_column(
+        comment="Дата создания сотрудника"
     )
-    joined_at: Mapped[Optional[datetime]] = mapped_column(comment="Дата присоединения")
-    created_at: Mapped[Optional[datetime]] = mapped_column(comment="Дата создания")
-    left_at: Mapped[Optional[datetime]] = mapped_column(comment="Дата увольнения")
+    employee_position: Mapped[Optional[str]] = mapped_column(
+        comment="Должность сотрудника"
+    )
+    employee_department: Mapped[Optional[str]] = mapped_column(
+        comment="Отдел сотрудника"
+    )
+    employee_status: Mapped[Optional[str]] = mapped_column(comment="Статус сотрудника")
 
     # Relationships
-    fl: Mapped["DicFl"] = relationship("DicFl", lazy="selectin")
-    ul: Mapped["DicUl"] = relationship("DicUl", lazy="selectin")
-    role: Mapped["DicRoles"] = relationship("DicRoles", lazy="selectin")
+    fl: Mapped["DicFl"] = relationship(
+        "DicFl",
+        lazy="selectin",
+        foreign_keys=[fl_id],
+        primaryjoin="Employees.fl_id == DicFl.id",
+    )
+    ul: Mapped["DicUl"] = relationship(
+        "DicUl",
+        lazy="selectin",
+        foreign_keys=[ul_id],
+        primaryjoin="Employees.ul_id == DicUl.id",
+    )
+    role_ref: Mapped["DicRoles"] = relationship(
+        "DicRoles",
+        lazy="selectin",
+        foreign_keys=[role],
+        primaryjoin="Employees.role == DicRoles.id",
+    )

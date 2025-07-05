@@ -14,12 +14,13 @@ from datetime import datetime
 from loguru import logger
 from fastapi_cache.decorator import cache
 
-from app.database.deps import get_session_with_commit
+from app.database.deps import get_session_with_commit, get_session_without_commit
 from app.modules.common.dto import Bbox
 from app.modules.common.router import BaseCRUDRouter, ORJsonCoder, request_key_builder, cache_ttl
 from .dtos import (
     EsfSellerBuyerDto,
     EsfSellerBuyerSimpleDto,
+    FnoDto,
     GetReceiptByFiscalBinDto,
     GetReceiptByFiscalKkmRegNumberDto,
     GetReceiptByFiscalKkmSerialNumberDto,
@@ -28,25 +29,35 @@ from .dtos import (
     KkmsFilterDto,
     OrganizationDto,
     OrganizationsFilterDto,
+    CountByYearDto,
+    CountByRegionsDto,
+    CountResponseDto,
+    OrganizationsByYearAndRegionsResponseDto,
     ReceiptsAnnualDto,
     ReceiptsDailyDto,
     ReceiptsDto,
     RiskInfosDto,
+    PopulationDto,
+    PopulationByRegionsResponseDto,
+    PopulationMonthlyByYearAndRegionsResponseDto
 )
 from .repository import (
     EsfBuyerDailyRepo,
     EsfBuyerRepo,
     EsfSellerDailyRepo,
     EsfSellerRepo,
+    FnoRepo,
     KkmsRepo,
     OrganizationsRepo,
     ReceiptsAnnualRepo,
     ReceiptsDailyRepo,
     ReceiptsRepo,
     RiskInfosRepo,
+    PopulationRepo
 )
-from .models import EsfBuyer, EsfBuyerDaily, EsfSeller, EsfSellerDaily, Organizations, Kkms, Receipts, RiskInfos  # noqa
-
+from .models import EsfBuyer, EsfBuyerDaily, EsfSeller, EsfSellerDaily, Organizations, Kkms, Receipts, RiskInfos, Populations  # noqa
+from .mappers import to_regions_filter_dto, to_organization_count_by_regions_response, to_population_count_by_regions_response
+from datetime import date
 
 router = APIRouter(prefix="/ckf")
 
@@ -81,6 +92,16 @@ class OrganizationsRouter(APIRouter):
 
         return response
 
+    @sub_router.get("/branches/{bin_root}")
+    @cache(expire=cache_ttl, key_builder=request_key_builder)  # Кэширование на 24 часа
+    async def get_branches(
+        bin_root: str,
+        session: AsyncSession = Depends(get_session_with_commit),
+    ) -> List[OrganizationDto]:
+        response = await OrganizationsRepo(session).get_branches(bin_root)
+
+        return [OrganizationDto.model_validate(item) for item in response]
+
     @sub_router.get("/{id}/kkms")
     @cache(expire=cache_ttl, key_builder=request_key_builder)  # Кэширование на 24 часа
     async def get_kkms(
@@ -89,6 +110,18 @@ class OrganizationsRouter(APIRouter):
     ) -> List[KkmsDto]:
         return await OrganizationsRepo(session).get_kkms(id)
         # return [KkmsDto.model_validate(kkm) for kkm in kkms]
+
+    @sub_router.get("/{id}/fno")
+    @cache(expire=cache_ttl, key_builder=request_key_builder)  # Кэширование на 24 часа
+    async def get_fno(
+        id: int,
+        session: AsyncSession = Depends(get_session_with_commit),
+    ) -> List[FnoDto]:
+        response = await FnoRepo(session).get_many_by_organization_id(id)
+        if not response:
+            return []
+
+        return [FnoDto.model_validate(item) for item in response]
 
     @sub_router.get("/{id}/esf-seller-buyer")
     @cache(expire=cache_ttl, key_builder=request_key_builder)  # Кэширование на 24 часа
@@ -169,8 +202,40 @@ class OrganizationsRouter(APIRouter):
             summary.append(item_summary)
 
         return summary
+    
+    @sub_router.get('/count/monthly/by-year-regions', response_model=OrganizationsByYearAndRegionsResponseDto)
+    @cache(expire=cache_ttl, key_builder=request_key_builder)  # Кэширование на 24 часа    
+    async def count_monthly_by_regions(
+        count_dto: Annotated[CountByYearDto, Query()],
+        session: AsyncSession = Depends(get_session_without_commit)
+    ):
+          
+        is_current_year = (count_dto.year == date.today().year)
+        filters = to_regions_filter_dto(count_dto=count_dto, is_current_year=is_current_year)
+        
+        rows = await OrganizationsRepo(session).count_monthly_by_year_and_regions(filters=filters)
+        
+        return to_organization_count_by_regions_response(rows=rows)
 
+    @sub_router.get('/count/by-year-regions', response_model=CountResponseDto)
+    @cache(expire=cache_ttl, key_builder=request_key_builder)  # Кэширование на 24 часа    
+    async def count_by_regions(
+        count_dto: Annotated[CountByYearDto, Query()],
+        session: AsyncSession = Depends(get_session_without_commit)
+    ):
+          
+        is_current_year = (count_dto.year == date.today().year)
+        date_ = date(count_dto.year, 12, 31) if not is_current_year else None
 
+        count = await OrganizationsRepo(session).count_by_year_and_regions(
+            territory=count_dto.territory, date_=date_
+        )
+        
+        return CountResponseDto(
+            count=count
+        )
+        
+            
 class KkmsRouter(APIRouter):
     sub_router = APIRouter(prefix="/kkms", tags=["ckf: kkms"])
     base_router = BaseCRUDRouter("kkms", Kkms, KkmsRepo, KkmsDto, tags=["ckf: kkms"])
@@ -200,6 +265,27 @@ class KkmsRouter(APIRouter):
     ):
         response = await KkmsRepo(session).filter(filters)
         return [KkmsDto.model_validate(item) for item in response]
+
+    @sub_router.get("/{id}/receipts-summary")
+    @cache(expire=cache_ttl, key_builder=request_key_builder)  # Кэширование на 24 часа
+    async def get_kkms_summary(
+        id: int,
+        session: AsyncSession = Depends(get_session_with_commit),
+    ):
+        date = datetime.now().date()
+        year = date.year
+
+        date_str = date.strftime("%Y-%m-%d")
+
+        logger.info(f"date: {date_str}")
+
+        receipts_daily = await ReceiptsDailyRepo(session).get_by_date_kkm_id(id, date)
+        receipts_annual = await ReceiptsAnnualRepo(session).get_by_year_kkm_id(id, year)
+
+        return {
+            "receipts_daily": ReceiptsDailyDto.model_validate(receipts_daily) if receipts_daily else None,
+            "receipts_annual": ReceiptsAnnualDto.model_validate(receipts_annual) if receipts_annual else None,
+        }
 
     @sub_router.get("/territory/receipts-summary")
     @cache(expire=cache_ttl, key_builder=request_key_builder)  # Кэширование на 24 часа
@@ -429,6 +515,77 @@ class ReceiptsRouter(APIRouter):
                 detail="Чек не найден по указанному фискальному признаку и ИИН/БИН",
             )
         return [ReceiptsDto.model_validate(item) for item in response]
+    
+
+class PopulationsRouter(APIRouter):
+    sub_router = APIRouter(prefix="/populations", tags=["ckf: populations"])
+    base_router = BaseCRUDRouter("populations", Populations, PopulationRepo, PopulationDto, tags=["ckf: populations"])
+
+    def __init__(self):
+        super().__init__()
+
+        self.include_router(self.sub_router)
+        self.include_router(self.base_router)
+        
+    @sub_router.get("/count/by-year-regions", response_model=PopulationByRegionsResponseDto)
+    @cache(expire=cache_ttl, key_builder=request_key_builder)  
+    async def count_by_regions(
+        count_dto: Annotated[CountByRegionsDto, Query()],
+        session: AsyncSession = Depends(get_session_without_commit)
+    ):
+        repository = PopulationRepo(session)
+        is_current_year = (count_dto.year == date.today().year)
+        
+        if is_current_year:
+            MAX_DATES = [
+                date(count_dto.year, 1, 1), date(count_dto.year, 4, 1),
+                date(count_dto.year, 7, 1), date(count_dto.year, 10, 1)
+            ]
+                        
+            populations = await repository.get_many_current_year_maximum_by_region(
+                count_dto=count_dto
+            )
+        
+            gender_populations = await repository.get_many_current_year_in_by_region(
+                count_dto=count_dto, dates=MAX_DATES
+            )
+        else:
+            POPULATION_DATE = date(count_dto.year, 12, 1)
+            GENDER_DATE = date(count_dto.year, 10, 1)
+            
+            populations = await repository.get_many_past_year_by_region(
+                count_dto=count_dto, date_=POPULATION_DATE
+            )
+            
+            gender_populations = await repository.get_many_past_year_by_region(
+                count_dto=count_dto, date_=GENDER_DATE
+            )
+        
+        sum_people = sum(population.people_num for population in populations if population.people_num)
+        sum_male = sum(population.male_num for population in gender_populations if population.male_num)
+        sum_female = sum(population.female_num for population in gender_populations if population.female_num)
+        
+        return PopulationByRegionsResponseDto(
+            sum_people=sum_people,
+            sum_male=sum_male,
+            sum_female=sum_female
+        )
+
+    @sub_router.get("/count/monthly/by-year-regions", response_model=PopulationMonthlyByYearAndRegionsResponseDto)
+    @cache(expire=cache_ttl, key_builder=request_key_builder)  
+    async def count_monthly_by_regions(
+        count_dto: Annotated[CountByRegionsDto, Query()],
+        session: AsyncSession = Depends(get_session_without_commit)
+    ):  
+        is_current_year = (count_dto.year == date.today().year)
+        filters = to_regions_filter_dto(count_dto=count_dto, is_current_year=is_current_year)
+        
+        rows = await PopulationRepo(session).get_population_monthly_by_region(
+            region=count_dto.region, filters=filters
+        )
+        
+        return to_population_count_by_regions_response(rows=rows)
+        
 
 
 router.include_router(OrganizationsRouter())
@@ -441,3 +598,5 @@ router.include_router(EsfBuyerRouter())
 router.include_router(EsfBuyerDailyRouter())
 
 router.include_router(RiskInfosRouter())
+
+router.include_router(PopulationsRouter())

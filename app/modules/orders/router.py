@@ -5,7 +5,12 @@ from fastapi import Depends
 from fastapi_cache.decorator import cache
 
 from app.database.deps import get_session_with_commit
-from app.modules.common.router import BaseCRUDRouter, request_key_builder, cache_ttl
+from app.modules.common.router import (
+    BaseCRUDRouter,
+    request_key_builder,
+    cache_ttl,
+    PaginatedResponse,
+)
 from .dtos import (
     DicOrderStatusDto,
     DicOrderTypeDto,
@@ -107,12 +112,51 @@ class RisksRouter(APIRouter):
     @sub_router.get("/with-details")
     @cache(expire=cache_ttl, key_builder=request_key_builder)
     async def get_risks_with_details(
-        filters: Annotated[RisksFilterDto, Query()],
+        page_size: int | None = None,
+        page: int | None = None,
+        risk_degree_id: int | None = None,
+        risk_type_id: int | None = None,
+        risk_name_id: int | None = None,
+        iin_bin: str | None = None,
         session: AsyncSession = Depends(get_session_with_commit),
-    ) -> List[RisksDto]:
-        """Получить риски с детальной информацией (аналог SQL запроса с JOIN)"""
-        response = await RisksRepo(session).get_risks_with_details(filters)
-        return [RisksDto.model_validate(item) for item in response]
+    ) -> PaginatedResponse[RisksDto]:
+        """
+        Получить риски с детальной информацией (аналог SQL запроса с JOIN) с поддержкой пагинации
+
+        - **page_size**: размер страницы (количество записей на странице)
+        - **page**: номер страницы (начиная с 1)
+        - **risk_degree_id**: фильтр по степени риска (опционально)
+        - **risk_type_id**: фильтр по типу риска (опционально)
+        - **risk_name_id**: фильтр по наименованию риска (опционально)
+        - **iin_bin**: фильтр по ИИН/БИН организации (опционально)
+
+        Возвращает пагинированный список рисков с информацией о:
+        - общем количестве записей
+        - текущей странице
+        - общем количестве страниц
+        """
+        filters = RisksFilterDto(
+            risk_degree_id=risk_degree_id,
+            risk_type_id=risk_type_id,
+            risk_name_id=risk_name_id,
+            iin_bin=iin_bin,
+        )
+
+        response, total = await RisksRepo(session).get_risks_with_details(
+            filters=filters, page_size=page_size, page=page
+        )
+
+        current_page = page or 1
+        total_pages = (
+            (total // page_size + int(total % page_size > 0)) if page_size else 1
+        )
+
+        return PaginatedResponse[RisksDto](
+            data=[RisksDto.model_validate(item) for item in response],
+            page=current_page,
+            total=total,
+            page_count=total_pages,
+        )
 
     @sub_router.put("/bulk")
     async def bulk_update_risks_order(

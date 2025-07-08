@@ -1,4 +1,4 @@
-from sqlalchemy import select, update
+from sqlalchemy import select, update, func
 from fastapi import HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 import sqlalchemy
@@ -50,7 +50,12 @@ class DicRiskTypeRepo(BaseRepository):
 class RisksRepo(BaseRepository):
     model = Risks
 
-    async def get_risks_with_details(self, filters: RisksFilterDto):
+    async def get_risks_with_details(
+        self,
+        filters: RisksFilterDto,
+        page_size: int | None = None,
+        page: int | None = None,
+    ):
         try:
             query = (
                 select(self.model)
@@ -68,23 +73,64 @@ class RisksRepo(BaseRepository):
                 )
             )
 
+            count_query = (
+                select(func.count(self.model.id))
+                .join(
+                    Organizations,
+                    self.model.organization_id == Organizations.id,
+                    isouter=True,
+                )
+                .join(DicRiskType, self.model.risk_type == DicRiskType.id, isouter=True)
+                .join(DicRiskName, self.model.risk_name == DicRiskName.id, isouter=True)
+                .join(
+                    DicRiskDegree,
+                    self.model.risk_degree == DicRiskDegree.id,
+                    isouter=True,
+                )
+            )
+
             if filters.risk_degree_id is not None:
                 query = query.filter(self.model.risk_degree == filters.risk_degree_id)
+                count_query = count_query.filter(
+                    self.model.risk_degree == filters.risk_degree_id
+                )
 
             if filters.risk_type_id is not None:
                 query = query.filter(self.model.risk_type == filters.risk_type_id)
+                count_query = count_query.filter(
+                    self.model.risk_type == filters.risk_type_id
+                )
 
             if filters.risk_name_id is not None:
                 query = query.filter(self.model.risk_name == filters.risk_name_id)
+                count_query = count_query.filter(
+                    self.model.risk_name == filters.risk_name_id
+                )
 
             if filters.iin_bin is not None:
                 query = query.filter(Organizations.iin_bin == filters.iin_bin)
+                count_query = count_query.filter(
+                    Organizations.iin_bin == filters.iin_bin
+                )
+
+            total = (await self._session.execute(count_query)).scalar()
+
+            if page_size is not None and page is not None:
+                offset = (page - 1) * page_size
+                query = query.offset(offset).limit(page_size)
+            elif page_size is not None:
+                query = query.limit(page_size)
+
+            # Добавляем сортировку для стабильной пагинации
+            query = query.order_by(self.model.id.desc())
 
             result = await self._session.execute(query)
             records = result.unique().scalars().all()
 
-            logger.info(f"Найдено {len(records)} записей рисков.")
-            return records
+            logger.info(
+                f"Найдено {len(records)} записей рисков (page_size={page_size}, page={page}). Всего: {total}"
+            )
+            return records, total
 
         except SQLAlchemyError as e:
             logger.error(f"Ошибка при поиске рисков по фильтрам {filters}: {e}")

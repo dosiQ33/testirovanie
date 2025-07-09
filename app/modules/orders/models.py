@@ -1,10 +1,13 @@
 from __future__ import annotations
-from typing import Optional
+from typing import Optional, List, TYPE_CHECKING
 from sqlalchemy import ForeignKey, BigInteger, Integer, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import date, datetime
 
 from app.modules.common.models import BasestModel
+
+if TYPE_CHECKING:
+    from app.modules.admins.models import Employees
 
 
 class DicOrderStatus(BasestModel):
@@ -71,7 +74,9 @@ class Risks(BasestModel):
     )
     risk_value: Mapped[Optional[float]] = mapped_column(comment="Значение риска")
     risk_details: Mapped[Optional[str]] = mapped_column(comment="Детали риска")
-    order_id: Mapped[Optional[int]] = mapped_column(comment="ID поручения")
+    order_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("orders.orders.id"), comment="ID поручения"
+    )
     exec_id: Mapped[Optional[int]] = mapped_column(comment="ID исполнения")
     is_ordered: Mapped[Optional[bool]] = mapped_column(comment="Назначен")
     organization_id: Mapped[Optional[int]] = mapped_column(
@@ -80,14 +85,19 @@ class Risks(BasestModel):
     period: Mapped[Optional[str]] = mapped_column(comment="Период")
 
     # Relationships
-    risk_type_ref: Mapped["DicRiskType"] = relationship(
+    risk_type_ref: Mapped[Optional["DicRiskType"]] = relationship(
         "DicRiskType", lazy="selectin", foreign_keys=[risk_type]
     )
-    risk_name_ref: Mapped["DicRiskName"] = relationship(
+    risk_name_ref: Mapped[Optional["DicRiskName"]] = relationship(
         "DicRiskName", lazy="selectin", foreign_keys=[risk_name]
     )
-    risk_degree_ref: Mapped["DicRiskDegree"] = relationship(
+    risk_degree_ref: Mapped[Optional["DicRiskDegree"]] = relationship(
         "DicRiskDegree", lazy="selectin", foreign_keys=[risk_degree]
+    )
+
+    # Relationship с поручением
+    order: Mapped[Optional["Orders"]] = relationship(
+        "Orders", back_populates="risks", foreign_keys=[order_id]
     )
 
 
@@ -105,7 +115,7 @@ class Orders(BasestModel):
         comment="Номер поручения", nullable=True
     )
     employee_id: Mapped[Optional[int]] = mapped_column(
-        comment="Сотрудник", nullable=True
+        ForeignKey("admin.employees.id"), comment="Сотрудник", nullable=True
     )
     order_status: Mapped[Optional[int]] = mapped_column(
         ForeignKey("orders.dic_order_status.id"),
@@ -123,11 +133,24 @@ class Orders(BasestModel):
     )
     sign: Mapped[Optional[str]] = mapped_column(comment="Подпись", nullable=True)
 
-    order_status_ref: Mapped["DicOrderStatus"] = relationship(
+    # Relationships
+    order_status_ref: Mapped[Optional["DicOrderStatus"]] = relationship(
         "DicOrderStatus", lazy="selectin", foreign_keys=[order_status]
     )
-    order_type_ref: Mapped["DicOrderType"] = relationship(
+    order_type_ref: Mapped[Optional["DicOrderType"]] = relationship(
         "DicOrderType", lazy="selectin", foreign_keys=[order_type]
+    )
+
+    # Relationship с рисками
+    risks: Mapped[List["Risks"]] = relationship(
+        "Risks", back_populates="order", foreign_keys="Risks.order_id", lazy="selectin"
+    )
+
+    # Relationship с сотрудником
+    employee: Mapped[Optional["Employees"]] = relationship(
+        "app.modules.admins.models.Employees",
+        lazy="selectin",
+        foreign_keys=[employee_id],
     )
 
 

@@ -4,6 +4,7 @@ from sqlalchemy.exc import SQLAlchemyError
 import sqlalchemy
 from loguru import logger
 from app.modules.common.repository import BaseRepository
+from app.modules.admins.models import Employees
 from .dtos import (
     ExecFilesFilterDto,
     ExecutionsFilterDto,
@@ -113,6 +114,12 @@ class RisksRepo(BaseRepository):
                     Organizations.iin_bin == filters.iin_bin
                 )
 
+            if filters.is_ordered is not None:
+                query = query.filter(self.model.is_ordered == filters.is_ordered)
+                count_query = count_query.filter(
+                    self.model.is_ordered == filters.is_ordered
+                )
+
             total = (await self._session.execute(count_query)).scalar()
 
             if page_size is not None and page is not None:
@@ -121,7 +128,6 @@ class RisksRepo(BaseRepository):
             elif page_size is not None:
                 query = query.limit(page_size)
 
-            # Добавляем сортировку для стабильной пагинации
             query = query.order_by(self.model.id.desc())
 
             result = await self._session.execute(query)
@@ -210,9 +216,13 @@ class OrdersRepo(BaseRepository):
     model = Orders
 
     async def filter_orders(self, filters: OrdersFilterDto):
-        """Получить поручения с фильтрацией"""
+        """Получить поручения с фильтрацией и связанными данными"""
         try:
-            query = select(self.model)
+            query = (
+                select(self.model)
+                .outerjoin(Employees, self.model.employee_id == Employees.id)
+                .outerjoin(Risks, self.model.id == Risks.order_id)
+            )
 
             if filters.order_date_from is not None:
                 query = query.filter(self.model.order_date >= filters.order_date_from)

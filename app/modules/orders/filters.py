@@ -72,6 +72,7 @@ class RisksFilter(Filter):
     risk_name: Optional[int] = None
     risk_degree: Optional[int] = None
     organization_id: Optional[int] = None
+    is_ordered: Optional[bool] = None
 
     risk_type_ref: Optional[DicRiskTypeFilter] = FilterDepends(
         with_prefix("risk_type_ref", DicRiskTypeFilter)

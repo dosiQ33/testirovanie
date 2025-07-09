@@ -118,6 +118,7 @@ class RisksRouter(APIRouter):
         risk_type_id: int | None = None,
         risk_name_id: int | None = None,
         iin_bin: str | None = None,
+        is_ordered: bool | None = None,
         session: AsyncSession = Depends(get_session_with_commit),
     ) -> PaginatedResponse[RisksDto]:
         """
@@ -129,6 +130,7 @@ class RisksRouter(APIRouter):
         - **risk_type_id**: фильтр по типу риска (опционально)
         - **risk_name_id**: фильтр по наименованию риска (опционально)
         - **iin_bin**: фильтр по ИИН/БИН организации (опционально)
+        - **is_ordered**: фильтр по статусу назначения (True - назначен, False - не назначен, None - все)
 
         Возвращает пагинированный список рисков с информацией о:
         - общем количестве записей
@@ -140,6 +142,7 @@ class RisksRouter(APIRouter):
             risk_type_id=risk_type_id,
             risk_name_id=risk_name_id,
             iin_bin=iin_bin,
+            is_ordered=is_ordered,
         )
 
         response, total = await RisksRepo(session).get_risks_with_details(

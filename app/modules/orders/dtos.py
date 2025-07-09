@@ -2,6 +2,7 @@ from typing import Optional, List
 from datetime import date, datetime
 from pydantic import BaseModel
 from app.modules.common.dto import BaseDto, BasestDto
+from app.modules.admins.dtos import EmployeesDto
 
 
 class DicOrderStatusDto(BasestDto):
@@ -59,6 +60,7 @@ class RisksFilterDto(BasestDto):
     risk_type_id: Optional[int] = None
     risk_name_id: Optional[int] = None
     iin_bin: Optional[str] = None
+    is_ordered: Optional[bool] = None
 
 
 class RiskUpdateDto(BasestDto):
@@ -113,6 +115,10 @@ class OrdersDto(BaseDto):
     # Relationships
     order_status_ref: Optional[DicOrderStatusDto] = None
     order_type_ref: Optional[DicOrderTypeDto] = None
+
+    # Добавляем новые поля
+    risks: List[RisksDto] = []
+    employee: Optional[EmployeesDto] = None
 
 
 class OrdersFilterDto(BasestDto):

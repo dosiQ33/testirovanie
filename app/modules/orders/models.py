@@ -5,6 +5,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import date, datetime
 
 from app.modules.common.models import BasestModel
+from app.modules.ckf.models import Organizations
 
 if TYPE_CHECKING:
     from app.modules.admins.models import Employees
@@ -98,6 +99,11 @@ class Risks(BasestModel):
     # Relationship с поручением
     order: Mapped[Optional["Orders"]] = relationship(
         "Orders", back_populates="risks", foreign_keys=[order_id]
+    )
+    organization: Mapped[Optional["Organizations"]] = relationship(
+        "app.modules.ckf.models.Organizations",
+        lazy="selectin",
+        foreign_keys=[organization_id],
     )
 
 

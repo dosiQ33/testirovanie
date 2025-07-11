@@ -16,7 +16,9 @@ class RiskDegreesFilter(Filter):
 
 class RiskInfoFilter(Filter):
     id: Optional[int] = None
-    risk_degree: Optional[RiskDegreesFilter] = FilterDepends(with_prefix("risk_degree", RiskDegreesFilter))
+    risk_degree: Optional[RiskDegreesFilter] = FilterDepends(
+        with_prefix("risk_degree", RiskDegreesFilter)
+    )
 
     class Constants(Filter.Constants):
         model = RiskInfos
@@ -39,7 +41,14 @@ class OrganizationsFilter(Filter):
     name_ru: Optional[str] = None
     name_kk: Optional[str] = None
 
-    risk_info: Optional[RiskInfoFilter] = FilterDepends(with_prefix("risk_info", RiskInfoFilter))
+    region: Optional[str] = None
+    city: Optional[str] = None
+    district: Optional[str] = None
+    village: Optional[str] = None
+
+    risk_info: Optional[RiskInfoFilter] = FilterDepends(
+        with_prefix("risk_info", RiskInfoFilter)
+    )
     oked: Optional[OkedsFilter] = FilterDepends(with_prefix("oked", OkedsFilter))
 
     class Constants(Filter.Constants):

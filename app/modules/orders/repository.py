@@ -120,6 +120,34 @@ class RisksRepo(BaseRepository):
                     self.model.is_ordered == filters.is_ordered
                 )
 
+            if filters.region is not None:
+                query = query.filter(Organizations.region.ilike(f"%{filters.region}%"))
+                count_query = count_query.filter(
+                    Organizations.region.ilike(f"%{filters.region}%")
+                )
+
+            if filters.city is not None:
+                query = query.filter(Organizations.city.ilike(f"%{filters.city}%"))
+                count_query = count_query.filter(
+                    Organizations.city.ilike(f"%{filters.city}%")
+                )
+
+            if filters.district is not None:
+                query = query.filter(
+                    Organizations.district.ilike(f"%{filters.district}%")
+                )
+                count_query = count_query.filter(
+                    Organizations.district.ilike(f"%{filters.district}%")
+                )
+
+            if filters.village is not None:
+                query = query.filter(
+                    Organizations.village.ilike(f"%{filters.village}%")
+                )
+                count_query = count_query.filter(
+                    Organizations.village.ilike(f"%{filters.village}%")
+                )
+
             total = (await self._session.execute(count_query)).scalar()
 
             if page_size is not None and page is not None:

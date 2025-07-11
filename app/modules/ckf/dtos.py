@@ -11,9 +11,15 @@ from pydantic import Field, ConfigDict, field_serializer
 from typing import Any, List, Optional
 
 
-from app.modules.common.dto import BasestDto, DtoWithShape, BaseDto, ByMonthAndRegionsResponseDto
+from app.modules.common.dto import (
+    BasestDto,
+    DtoWithShape,
+    BaseDto,
+    ByMonthAndRegionsResponseDto,
+)
 from app.modules.ext.okeds.dtos import OkedsDto
 from app.modules.nsi.dtos import CommonRefDto, SimpleRefDto
+
 
 class KkmsDto(DtoWithShape):
     organization_id: int
@@ -65,6 +71,11 @@ class OrganizationDto(DtoWithShape):
 
     address: Optional[str]
 
+    region: Optional[str] = None
+    city: Optional[str] = None
+    district: Optional[str] = None
+    village: Optional[str] = None
+
     kkms: List[KkmsDto] = Field(default_factory=list)
 
 
@@ -77,13 +88,13 @@ class OrganizationsFilterDto(BasestDto):
     iin_bin: Optional[str] = None
     risk_degree_ids: Optional[List[int]] = None
     oked_ids: Optional[List[int]] = None
-    
+
 
 class OrganizationsByYearAndRegionsResponseDto(BasestDto):
     monthly: List[ByMonthAndRegionsResponseDto]
     year_count: Optional[int]
-        
-        
+
+
 class KkmsWithOrganizationDto(KkmsDto):
     organization: OrganizationDto
 
@@ -124,8 +135,8 @@ class FnoDto(BaseDto):
     fno_912_00: Optional[float] = None
     fno_913_00: Optional[float] = None
     fno_920_00: Optional[float] = None
-    
-    
+
+
 class FnoStatisticsDto(BasestDto):
     turnover_current_year: float
     turnover_prev_year: float
@@ -181,13 +192,14 @@ class EsfMonthDto(BasestDto):
     month: int
     turnover: float
 
+
 class EsfStatisticsDto(BasestDto):
     esf_seller_daily_amount: float
     esf_seller_amount: float
     esf_buyer_daily_amount: float
     esf_buyer_amount: float
-    
-    
+
+
 class EsfMontlyStatisticsDto(BasestDto):
     esf_seller_monthly: List[EsfMonthDto]
     esf_buyer_montly: List[EsfMonthDto]

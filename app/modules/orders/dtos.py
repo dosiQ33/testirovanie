@@ -3,6 +3,7 @@ from datetime import date, datetime
 from pydantic import BaseModel
 from app.modules.common.dto import BaseDto, BasestDto
 from app.modules.admins.dtos import EmployeesDto
+from app.modules.ckf.dtos import OrganizationDto
 
 
 class DicOrderStatusDto(BasestDto):
@@ -53,6 +54,7 @@ class RisksDto(BaseDto):
     risk_type_ref: Optional[DicRiskTypeDto] = None
     risk_name_ref: Optional[DicRiskNameDto] = None
     risk_degree_ref: Optional[DicRiskDegreeDto] = None
+    organization: Optional[OrganizationDto] = None
 
 
 class RisksFilterDto(BasestDto):
@@ -61,6 +63,11 @@ class RisksFilterDto(BasestDto):
     risk_name_id: Optional[int] = None
     iin_bin: Optional[str] = None
     is_ordered: Optional[bool] = None
+
+    region: Optional[str] = None
+    city: Optional[str] = None
+    district: Optional[str] = None
+    village: Optional[str] = None
 
 
 class RiskUpdateDto(BasestDto):

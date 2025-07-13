@@ -173,3 +173,4 @@ yarl==1.18.3
 yattag==1.16.1
 zipp==3.21.0
 SQLAlchemy-serializer
+clickhouse-connect==0.7.19

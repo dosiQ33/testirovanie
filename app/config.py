@@ -16,6 +16,14 @@ class Settings(BaseSettings):
     POSTGRES_PORT: int
     POSTGRES_DB: str
 
+    # ClickHouse settings
+    CLICKHOUSE_HOST: str = "localhost"
+    CLICKHOUSE_PORT: int = 8123
+    CLICKHOUSE_USER: str = "coc_admin"
+    CLICKHOUSE_PASSWORD: str = "QAZqaz123"
+    CLICKHOUSE_DATABASE: str = "default"
+    CLICKHOUSE_SECURE: bool = False
+
     @computed_field  # type: ignore[misc]
     @property
     def DB_URL(self) -> PostgresDsn:

@@ -1,5 +1,3 @@
-# Содержимое для app/modules/receipts_click/router.py
-
 from typing import Annotated, List, Optional
 from fastapi import APIRouter, HTTPException, Query, status, Depends
 from datetime import datetime
@@ -12,7 +10,7 @@ from app.database.deps import get_session_with_commit
 from app.modules.common.router import request_key_builder, cache_ttl
 from app.modules.ckf.repository import (
     OrganizationsRepo,
-)  # Для получения данных организаций из PostgreSQL
+)
 from app.modules.ckf.dtos import OrganizationDto
 from .deps import get_clickhouse_client
 from .dtos import (
@@ -173,7 +171,6 @@ class ReceiptsClickRouter(APIRouter):
                 detail=f"Чеки для организации с ID {organization_id} не найдены",
             )
 
-        # Если нужна детальная информация об организации, получаем её из PostgreSQL
         organization_data = None
         if include_organization_details:
             try:
@@ -188,7 +185,6 @@ class ReceiptsClickRouter(APIRouter):
             except Exception as e:
                 logger.error(f"Ошибка при получении организации из PostgreSQL: {e}")
 
-        # Добавляем информацию об организации к результату (если запрошена)
         result = []
         for receipt in receipts:
             receipt_dict = receipt.model_dump()
@@ -270,9 +266,8 @@ class ReceiptsClickRouter(APIRouter):
 
         - **fiskal_sign**: фискальный признак
         - **organization_id**: ID организации
-        - **include_organization_details**: получить детальную информацию об организации из PostgreSQL
+        - **include_organization_details**: получить детальную информацию об организации из PostgreSQL(with id)
         """
-        # Сначала получаем ККМ организации из ClickHouse
         kkms_repo = KkmsClickRepository(client)
         kkms = await kkms_repo.get_by_organization_id(dto.organization_id)
 
@@ -282,20 +277,17 @@ class ReceiptsClickRouter(APIRouter):
                 detail=f"ККМ для организации с ID {dto.organization_id} не найдены",
             )
 
-        # Получаем чеки по фискальному признаку для всех ККМ организации
         receipts_repo = ReceiptsClickRepository(client)
         all_receipts = []
 
         for kkm in kkms:
             try:
-                # Поиск по регистрационному номеру
                 if kkm.reg_number:
                     receipts = await receipts_repo.get_by_fiscal_and_kkm_reg_number(
                         fiskal_sign=dto.fiskal_sign, kkm_reg_number=kkm.reg_number
                     )
                     all_receipts.extend(receipts)
 
-                # Поиск по серийному номеру (если рег. номер не дал результатов)
                 if not all_receipts and kkm.serial_number:
                     receipts = await receipts_repo.get_by_fiscal_and_kkm_serial_number(
                         fiskal_sign=dto.fiskal_sign, kkm_serial_number=kkm.serial_number
@@ -312,7 +304,6 @@ class ReceiptsClickRouter(APIRouter):
                 detail=f"Чеки по фискальному признаку {dto.fiskal_sign} и организации {dto.organization_id} не найдены",
             )
 
-        # Если нужна детальная информация об организации, получаем её из PostgreSQL
         organization_data = None
         if include_organization_details:
             try:
@@ -323,7 +314,6 @@ class ReceiptsClickRouter(APIRouter):
             except Exception as e:
                 logger.error(f"Ошибка при получении организации из PostgreSQL: {e}")
 
-        # Добавляем информацию об организации к результату (если запрошена)
         result = []
         for receipt in all_receipts:
             receipt_dict = receipt.model_dump()
@@ -360,6 +350,5 @@ class ReceiptsClickRouter(APIRouter):
         return stats
 
 
-# Подключение роутеров
 router.include_router(KkmsClickRouter())
 router.include_router(ReceiptsClickRouter())

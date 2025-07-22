@@ -1,7 +1,3 @@
-"""
-ClickHouse client configuration and connection management
-"""
-
 import clickhouse_connect
 from clickhouse_connect.driver import Client
 from contextlib import asynccontextmanager
@@ -48,7 +44,6 @@ class ClickHouseClient:
             logger.info("ClickHouse connection closed")
 
 
-# Global ClickHouse client instance
 clickhouse_client = ClickHouseClient()
 
 
@@ -68,8 +63,6 @@ async def get_clickhouse_client() -> AsyncGenerator[Client, None]:
         logger.error(f"ClickHouse operation failed: {e}")
         raise
     finally:
-        # В clickhouse-connect нет необходимости закрывать соединение после каждого запроса
-        # Клиент управляет пулом соединений автоматически
         pass
 
 

@@ -6,6 +6,7 @@ Author: RaiMX
 Copyright (c) 2025 RaiMX
 """
 
+import os
 from fastapi import APIRouter
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -33,7 +34,9 @@ class PaginatedResponse(BaseModel, Generic[T]):
     page_count: int
 
 
-cache_ttl = 1  # 1 second in debug mode, 24 hours in production
+# Определяем TTL кэша в зависимости от окружения
+PROJECT_ENV = os.getenv("PROJECT_ENV")
+cache_ttl = 1 * 60 * 60 if PROJECT_ENV == "prod" or PROJECT_ENV == "test" else 1
 
 
 def request_key_builder(

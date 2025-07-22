@@ -1,14 +1,20 @@
-from sqlalchemy import func, select, text, cast, Integer
+from sqlalchemy import func, select, text, cast, Integer, literal, or_, union
 from sqlalchemy.exc import SQLAlchemyError
 from loguru import logger
 
-from app.modules.common.dto import ByYearAndRegionsFilterDto, CountByYearAndRegionsDto
 from app.modules.common.enums import RegionEnum
 from app.modules.common.repository import BaseRepository
+from app.modules.common.dto import ByYearAndRegionsFilterDto
 from app.modules.common.utils import territory_to_geo_element
+from app.modules.nsi.models import Ugds
 from app.modules.ext.kazgeodesy.models import KazgeodesyRkOblasti, KazgeodesyRkRaiony #осторожно
 from .models import (
-    Populations
+    Populations,
+    NalogPostuplenie
+)
+from .dtos import (
+    PopulationCountByRegionDto,
+    PopulationPeriodFilterDto,
 )
 from typing import List
 from datetime import date
@@ -16,28 +22,19 @@ from datetime import date
 class PopulationRepo(BaseRepository):
     model = Populations
     
-    def apply_region_join(self, query, region: RegionEnum, territory: str):
-        
-        territory_geom = territory_to_geo_element(territory=territory, srid=4326)
-        
-        if region == RegionEnum.oblast:
+    def apply_region_filter(self, query, region: RegionEnum, region_id: int):        
+        if region == RegionEnum.oblast or region == RegionEnum.rk:
             query = (
-                query.join(
-                    KazgeodesyRkOblasti,
-                    Populations.oblast_id == KazgeodesyRkOblasti.id
-                ).filter(func.ST_Intersects(KazgeodesyRkOblasti.geom, territory_geom))
+                query.filter(Populations.oblast_id == region_id)
             )
         elif region == RegionEnum.raion:
             query = (
-                query.join(
-                    KazgeodesyRkRaiony,
-                    Populations.raion_id == KazgeodesyRkRaiony.id
-                ).filter(func.ST_Intersects(KazgeodesyRkRaiony.geom, territory_geom))
+                query.filter(Populations.raion_id == region_id)
             )
         
         return query
     
-    async def get_population_monthly_by_region(self, filters: ByYearAndRegionsFilterDto):
+    async def get_population_monthly_by_region(self, filters: PopulationPeriodFilterDto):
         try:
             
             month_series = select(
@@ -54,7 +51,7 @@ class PopulationRepo(BaseRepository):
             query = (
                 select(
                     cast(func.extract("month", month_start), Integer).label("month"),
-                    func.count().label("count")
+                    func.coalesce(Populations.people_num, 0).label("count")
                 )
                 .select_from(
                     month_series
@@ -63,11 +60,10 @@ class PopulationRepo(BaseRepository):
                         Populations.date_ == month_start
                     )
                 )
-                .group_by(month_start)
                 .order_by(month_start)
             )
-            
-            query = self.apply_region_join(query=query, region=filters.region, territory=filters.territory)
+
+            query = self.apply_region_filter(query=query, region=filters.region, region_id=filters.region_id)
             result = await self._session.execute(query)
             rows = result.all()
 
@@ -76,20 +72,21 @@ class PopulationRepo(BaseRepository):
             logger.error(f"Ошибка при поиске всех записей: {e}")
             raise
         
-    async def get_many_past_year_by_region(self, count_dto: CountByYearAndRegionsDto, date_: date):
+    async def get_past_year_by_region(self, count_dto: PopulationCountByRegionDto, date_: date):
         try:
             query = select(Populations).filter(Populations.date_ == date_)
-            query = self.apply_region_join(query=query, region=count_dto.region, territory=count_dto.territory)
+            
+            query = self.apply_region_filter(query=query, region=count_dto.region, region_id=count_dto.region_id)
             
             result = await self._session.execute(query)
-            records = result.scalars().all()
+            record = result.scalars().all()
             
-            return records
+            return record
         except SQLAlchemyError as e:
             logger.error(f"Ошибка при поиске всех записей: {e}")
             raise
 
-    async def get_many_current_year_maximum_by_region(self, count_dto: CountByYearAndRegionsDto):
+    async def get_current_year_maximum_by_region(self, count_dto: PopulationCountByRegionDto):
         try:
             max_date_subq = (
                 select(func.max(Populations.date_))
@@ -100,19 +97,19 @@ class PopulationRepo(BaseRepository):
                 .scalar_subquery()
             )
             
-            query = select(Populations).where(Populations.date_ == max_date_subq)
+            query = select(Populations).filter(Populations.date_ == max_date_subq)
             
-            query = self.apply_region_join(query=query, region=count_dto.region, territory=count_dto.territory)
+            query = self.apply_region_filter(query=query, region=count_dto.region, region_id=count_dto.region_id)
 
             result = await self._session.execute(query)
-            records = result.scalars().all()
+            record = result.scalars().first() # на случай если есть дубли
             
-            return records
+            return record
         except SQLAlchemyError as e:
             logger.error(f"Ошибка при поиске всех записей: {e}")
             raise
 
-    async def get_many_current_year_in_by_region(self, count_dto: CountByYearAndRegionsDto, dates: List[date]):
+    async def get_current_year_in_by_region(self, count_dto: PopulationCountByRegionDto, dates: List[date]):
         try:
             max_qdate_subq = (
                 select(func.max(Populations.date_))
@@ -122,12 +119,85 @@ class PopulationRepo(BaseRepository):
             
             query = select(Populations).where(Populations.date_ == max_qdate_subq)
             
-            query = self.apply_region_join(query=query, region=count_dto.region, territory=count_dto.territory)
+            query = self.apply_region_filter(query=query, region=count_dto.region, region_id=count_dto.region_id)
 
             result = await self._session.execute(query)
-            records = result.scalars().all()
+            record = result.scalars().first() # на случай дублей
             
-            return records
+            return record
         except SQLAlchemyError as e:
             logger.error(f"Ошибка при поиске всех записей: {e}")
+            raise
+
+class NalogPostuplenieRepo(BaseRepository):
+    model = NalogPostuplenie
+
+    def apply_region_and_ugds_subquery(self, query, region: RegionEnum, region_id: int):        
+        if region == RegionEnum.oblast or region == RegionEnum.rk:
+            ugd_ids_main = select(Ugds.id).where(Ugds.oblast_id == region_id)
+
+            ugd_ids_children = select(Ugds.id).where(
+                Ugds.parent_id.in_(
+                    select(Ugds.id).where(Ugds.oblast_id == region_id)
+                )
+            )
+
+            all_ugd_ids = union(ugd_ids_main, ugd_ids_children).subquery()
+            query = query.filter(NalogPostuplenie.ugd_id.in_(select(all_ugd_ids.c.id)))
+            
+        elif region == RegionEnum.raion:
+            ugd_ids_subq = select(Ugds.id).where(Ugds.raion_id == region_id).subquery()
+
+            query = query.filter(NalogPostuplenie.ugd_id.in_(select(ugd_ids_subq.c.id)))
+
+        
+        return query
+
+    async def get_total_amount_by_region(self, filters: PopulationCountByRegionDto):
+        try:
+            query = (
+                select(
+                    func.coalesce(func.sum(NalogPostuplenie.total_amount), 0).label("total_sum")
+                )
+                .filter(
+                    NalogPostuplenie.rb == True,
+                    NalogPostuplenie.month >= date(filters.year, 1, 1),
+                    NalogPostuplenie.month <= date(filters.year, 12, 31)
+                )
+            )
+
+            query = self.apply_region_and_ugds_subquery(query=query, region=filters.region, region_id=filters.region_id)
+            result = await self._session.execute(query)
+            row = result.one()
+
+            return {"total_sum": float(row.total_sum)}
+        except SQLAlchemyError as e:
+            logger.error(f"Ошибка при получении суммы налогов по региону: {e}")
+            raise
+
+    async def get_montly_total_by_region(self, filters: PopulationPeriodFilterDto):
+        try:
+            month_extract = func.extract("month", NalogPostuplenie.month)
+
+            query = (
+                select(
+                    cast(month_extract, Integer).label("month"),
+                    func.coalesce(func.sum(NalogPostuplenie.total_amount), 0).label("total_sum")
+                )
+                .filter(
+                    NalogPostuplenie.rb == True,
+                    NalogPostuplenie.month >= date(filters.year, 1, 1),
+                    NalogPostuplenie.month <= date(filters.year, 12, 31)
+                )
+                .group_by(month_extract)
+                .order_by(month_extract)
+            )
+
+            query = self.apply_region_and_ugds_subquery(query=query, region=filters.region, region_id=filters.region_id)
+            result = await self._session.execute(query)
+            rows = result.all()
+
+            return [{"month": row.month, "total_sum": row.total_sum} for row in rows]
+        except SQLAlchemyError as e:
+            logger.error(f"Ошибка при получении суммы налогов по региону: {e}")
             raise

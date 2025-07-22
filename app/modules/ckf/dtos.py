@@ -17,6 +17,7 @@ from app.modules.common.dto import (
     BaseDto,
     ByMonthAndRegionsResponseDto,
 )
+from app.modules.common.enums import RegionEnum, FloorEnum
 from app.modules.ext.okeds.dtos import OkedsDto
 from app.modules.nsi.dtos import CommonRefDto, SimpleRefDto
 
@@ -225,6 +226,7 @@ class ReceiptsDto(BaseDto):
     item_nds: Optional[float]
     full_item_price: Optional[float]
     payment_type: Optional[int]
+    operation_date_new: Optional[datetime]
     # updated_date: Optional[datetime]
 
     @field_serializer("fiskal_sign")
@@ -247,7 +249,7 @@ class ReceiptsDailyDto(BaseDto):
 
     check_sum: float
     check_count: int
-    date_check: date
+    date_check: Optional[date] = None
 
 
 class ReceiptsSummaryDto(BaseDto):
@@ -282,3 +284,119 @@ class GetReceiptByFiscalBinDto(BasestDto):
     @field_serializer("fiskal_sign")
     def serialize_country(self, fiskal_sign: Any, _info):
         return fiskal_sign
+
+
+class KkmStatisticsRequestDto(BasestDto):
+    territory: Optional[str] = None
+    year: int
+    region: RegionEnum
+
+
+class KkmMonthlyStatisticsItemDto(BasestDto):
+    month: int
+    receipts_count: int
+    turnover: float
+
+
+class KkmStatisticsResponseDto(BasestDto):
+    monthly_data: List[KkmMonthlyStatisticsItemDto]
+
+
+class EsfMonthlyStatisticsRequestDto(BasestDto):
+    territory: Optional[str] = None
+    year: int
+    region: Optional[RegionEnum] = None
+
+
+class EsfMonthlyByBuildingRequestDto(BasestDto):
+    territory: str
+
+
+class KkmAggregatedStatisticsRequestDto(BasestDto):
+    territory: Optional[str] = None
+    region: RegionEnum
+
+
+class KkmAggregatedStatisticsResponseDto(BasestDto):
+    active_kkm_count: int
+    daily_turnover: float
+    daily_receipts_count: int
+    yearly_turnover: float
+    yearly_receipts_count: int
+
+
+class KkmAggregatedByBuildingResponseDto(BasestDto):
+    daily_turnover: float
+    yearly_turnover: float
+
+
+class BuildingsFilterDto(BasestDto):
+    floor: Optional[FloorEnum] = None
+    territory: str
+
+
+class OrganizationsAndKkmsCountResponseDto(BasestDto):
+    organizations: int
+    kkms: int
+
+
+class NPBuildingResponseDto(BasestDto):
+    iin_bin: str
+    name_ru: str
+    seller_total_amount: float
+    buyer_total_amount: float
+    kkm_total_amount: int
+
+
+class NPBuildingListResponseDto(BasestDto):
+    info: List[NPBuildingResponseDto]
+
+
+class EsfBuildingResponseDto(BasestDto):
+    iin_bin: str
+    name_ru: str
+    seller_daily_total: float
+    buyer_daily_total: float
+    seller_total: float
+    buyer_total: float
+
+
+class EsfBuildingListResponseDto(BasestDto):
+    info: List[EsfBuildingResponseDto]
+
+
+class FnoBuildingsBarChartDto(BasestDto):
+    quarter: int
+    total_sum: int
+
+
+class FnoBuildingsBarChartListResponseDto(BasestDto):
+    quarterly: List[FnoBuildingsBarChartDto]
+
+
+class FnoInfoDto(BasestDto):
+    iin_bin: str
+    q1_sum: int
+    q2_sum: int
+    q3_sum: int
+    q4_sum: int
+    half1_sum: int
+    half2_sum: int
+    year_sum: int
+
+
+class FnoInfoListDto(BasestDto):
+    info: List[FnoInfoDto]
+
+
+class KkmsInfoDto(BasestDto):
+    iin_bin: str
+    reg_number: str
+    daily_sum: float
+    daily_count: int
+    annual_sum: float
+    annual_count: int
+
+
+class KkmsInfoListDto(BasestDto):
+    info: List[KkmsInfoDto]

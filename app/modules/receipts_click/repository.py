@@ -1,5 +1,3 @@
-# Содержимое для app/modules/receipts_click/repository.py
-
 from typing import List, Optional, Dict, Any
 from clickhouse_connect.driver import Client
 from loguru import logger
@@ -168,16 +166,14 @@ class ReceiptsClickRepository(BaseClickRepository):
             for row in result.result_rows:
                 row_dict = self._row_to_dict(row, result.column_names)
 
-                # Выделяем данные чека
                 receipt_data = {
                     k: v for k, v in row_dict.items() if not k.startswith("kkm_")
                 }
 
-                # Выделяем данные ККМ
                 kkm_data = {}
                 for k, v in row_dict.items():
                     if k.startswith("kkm_"):
-                        kkm_key = k[4:]  # убираем префикс 'kkm_'
+                        kkm_key = k[4:]
                         if kkm_key == "id":
                             kkm_data["id"] = v
                         elif kkm_key == "organization_id":
@@ -234,16 +230,14 @@ class ReceiptsClickRepository(BaseClickRepository):
             for row in result.result_rows:
                 row_dict = self._row_to_dict(row, result.column_names)
 
-                # Выделяем данные чека
                 receipt_data = {
                     k: v for k, v in row_dict.items() if not k.startswith("kkm_")
                 }
 
-                # Выделяем данные ККМ
                 kkm_data = {}
                 for k, v in row_dict.items():
                     if k.startswith("kkm_"):
-                        kkm_key = k[4:]  # убираем префикс 'kkm_'
+                        kkm_key = k[4:]
                         if kkm_key == "id":
                             kkm_data["id"] = v
                         elif kkm_key == "organization_id":
@@ -300,16 +294,14 @@ class ReceiptsClickRepository(BaseClickRepository):
             for row in result.result_rows:
                 row_dict = self._row_to_dict(row, result.column_names)
 
-                # Выделяем данные чека
                 receipt_data = {
                     k: v for k, v in row_dict.items() if not k.startswith("kkm_")
                 }
 
-                # Выделяем данные ККМ
                 kkm_data = {}
                 for k, v in row_dict.items():
                     if k.startswith("kkm_"):
-                        kkm_key = k[4:]  # убираем префикс 'kkm_'
+                        kkm_key = k[4:]
                         if kkm_key == "id":
                             kkm_data["id"] = v
                         elif kkm_key == "organization_id":

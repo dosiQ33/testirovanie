@@ -1,7 +1,3 @@
-"""
-ClickHouse dependencies for FastAPI
-"""
-
 from clickhouse_connect.driver import Client
 from fastapi import Depends
 

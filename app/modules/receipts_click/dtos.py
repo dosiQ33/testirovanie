@@ -1,12 +1,10 @@
-# Содержимое для app/modules/receipts_click/dtos.py
-
 from typing import Optional, List
 from datetime import datetime
 from pydantic import Field
 from app.modules.common.dto import BasestDto, BaseDto
 from app.modules.ckf.dtos import (
     OrganizationDto,
-)  # Импортируем DTO организации из ckf модуля
+)
 
 
 class KkmsClickDto(BasestDto):
@@ -48,7 +46,7 @@ class ReceiptsWithKkmDto(ReceiptsClickDto):
     """DTO для чеков с информацией о ККМ и опционально об организации"""
 
     kkm: Optional[KkmsClickDto] = None
-    organization: Optional[OrganizationDto] = None  # Данные организации из PostgreSQL
+    organization: Optional[OrganizationDto] = None
 
 
 class ReceiptsFilterDto(BasestDto):

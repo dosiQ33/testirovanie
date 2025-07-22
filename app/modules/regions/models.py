@@ -20,3 +20,15 @@ class Populations(BasestModel):
     people_num: Mapped[int] = mapped_column(Integer, comment="число людей", nullable=True)
     male_num: Mapped[int] = mapped_column(Integer, comment="число мужчин", nullable=True)
     female_num: Mapped[int] = mapped_column(Integer, comment="число женщин", nullable=True)
+
+class NalogPostuplenie(BasestModel):
+    __tablename__ = "nalog_postuplenie"
+    __table_args__ = dict(comment="Налоговые поступления")
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+
+    ugd_id: Mapped[int] = mapped_column(ForeignKey('public.ugds.id'), comment='Код налогового органа')
+    kbk_code: Mapped[str] = mapped_column(name='kbk_code', comment='Код бюджета', nullable=False)
+    month: Mapped[date] = mapped_column(name='month', comment='Месяц/Год', nullable=False)
+    total_amount: Mapped[float] = mapped_column(name='total_amount', comment='Общая сумма налога', nullable=False)
+    rb: Mapped[bool] = mapped_column(name='rb')

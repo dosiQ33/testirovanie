@@ -15,6 +15,7 @@ from app.modules.ext.router import router as router_ext
 from app.modules.ar.router import router as router_ar
 from app.modules.orders.router import router as router_orders
 from app.modules.admins.router import router as router_admins
+from app.modules.receipts_click.router import router as router_receipts_click
 
 
 @asynccontextmanager
@@ -50,6 +51,7 @@ def register_routers(app: FastAPI) -> None:
     app.include_router(router_ar, prefix=global_prefix_v1)
     app.include_router(router_orders, prefix=global_prefix_v1)
     app.include_router(router_admins, prefix=global_prefix_v1)
+    app.include_router(router_receipts_click, prefix=global_prefix_v1)
 
 
 def create_app() -> FastAPI:

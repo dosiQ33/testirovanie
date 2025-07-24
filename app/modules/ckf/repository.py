@@ -66,6 +66,7 @@ from .models import (
     ReceiptsAnnual,
     ReceiptsDaily,
     RiskInfos,
+    DicSzpt,
 )
 from typing import Optional
 from datetime import date, datetime
@@ -410,6 +411,7 @@ class KkmsRepo(BaseRepository):
             logger.error(f"Ошибка при поиске всех записей по фильтрам {filters}: {e}")
             raise
 
+#
     async def get_kkms_by_month(self, filters: BuildingsFilterDto):
         territory_geom = territory_to_geo_element(territory=filters.territory)
         try:
@@ -1211,4 +1213,60 @@ class ReceiptsRepo(BaseWithKkmRepository):
 
         except SQLAlchemyError as e:
             logger.error(f"Ошибка при получении агрегированной статистики ККМ: {e}")
+            raise
+
+class SzptRepo(BaseRepository):
+    model = DicSzpt
+
+    async def get_all_kkms_with_violations_by_szpt(self, szpt_id: int):
+        try:
+            query = (
+                select(
+                    Kkms.id,
+                    Kkms.reg_number,
+                    func.ST_AsText(Kkms.shape).label("shape")
+                )
+                .select_from(
+                    Kkms
+                )
+                .join(
+                    Receipts,
+                    Kkms.id == Receipts.kkms_id
+                )
+                .where(
+                    Receipts.has_szpt_violation == True,
+                    Receipts.szpt_id == szpt_id
+                )
+            )
+
+            result = await self._session.execute(query)
+            rows = result.all()
+
+            return {'kkms': 
+                    [dict(row._mapping) for row in rows]
+                }
+        except SQLAlchemyError as e:
+            logger.error(f'Ошибка при получении ККМ с нарушениями: {e}')
+            raise
+
+    async def get_violations_count_by_kkm_id(self, kkm_id: int, szpt_id: int):
+        try:
+            query = (
+                select(
+                    func.count()
+                )
+                .select_from(Receipts)
+                .where(
+                    Receipts.kkms_id == kkm_id,
+                    Receipts.has_szpt_violation == True,
+                    Receipts.szpt_id == szpt_id
+                )
+            )
+
+            result = await self._session.execute(query)
+            row = result.one()
+
+            return dict(row._mapping)
+        except SQLAlchemyError as e:
+            logger.error(f'Ошибка при получении ККМ с нарушениями: {e}')
             raise

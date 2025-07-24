@@ -2,16 +2,10 @@ from typing import Annotated, List, Optional
 from fastapi import APIRouter, HTTPException, Query, status, Depends
 from datetime import datetime
 from clickhouse_connect.driver import Client
-from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi_cache.decorator import cache
 from loguru import logger
 
-from app.database.deps import get_session_with_commit
 from app.modules.common.router import request_key_builder, cache_ttl
-from app.modules.ckf.repository import (
-    OrganizationsRepo,
-)
-from app.modules.ckf.dtos import OrganizationDto
 from .deps import get_clickhouse_client
 from .dtos import (
     KkmsClickDto,
@@ -21,8 +15,15 @@ from .dtos import (
     GetReceiptByFiscalKkmRegNumberClickDto,
     GetReceiptByFiscalKkmSerialNumberClickDto,
     GetReceiptByFiscalOrganizationClickDto,
+    StatDayDto,
+    StatYearDto,
+    KkmStatsDto,
 )
-from .repository import KkmsClickRepository, ReceiptsClickRepository
+from .repository import (
+    KkmsClickRepository,
+    ReceiptsClickRepository,
+    StatsClickRepository,
+)
 
 
 router = APIRouter(prefix="/receipts-click")
@@ -111,7 +112,7 @@ class KkmsClickRouter(APIRouter):
 
 
 class ReceiptsClickRouter(APIRouter):
-    """Роутер для работы с чеками из ClickHouse (аналог RiskInfosRouter)"""
+    """Роутер для работы с чеками из ClickHouse"""
 
     sub_router = APIRouter(prefix="/receipts", tags=["clickhouse: receipts"])
 
@@ -127,7 +128,7 @@ class ReceiptsClickRouter(APIRouter):
         client: Client = Depends(get_clickhouse_client),
     ) -> List[ReceiptsClickDto]:
         """
-        Получить чеки по ID ККМ (аналог get_by_organization_id из RiskInfosRouter)
+        Получить чеки по ID ККМ
 
         - **kkm_id**: ID ККМ
         - **limit**: максимальное количество записей (по умолчанию 100)
@@ -149,18 +150,13 @@ class ReceiptsClickRouter(APIRouter):
     async def get_receipts_by_organization_id(
         organization_id: int,
         limit: int = Query(default=100, description="Максимальное количество записей"),
-        include_organization_details: bool = Query(
-            default=False, description="Включить детальную информацию об организации"
-        ),
         client: Client = Depends(get_clickhouse_client),
-        pg_session: AsyncSession = Depends(get_session_with_commit),
     ) -> List[ReceiptsWithKkmDto]:
         """
         Получить чеки по ID организации с информацией о ККМ
 
         - **organization_id**: ID организации
         - **limit**: максимальное количество записей (по умолчанию 100)
-        - **include_organization_details**: получить детальную информацию об организации из PostgreSQL
         """
         repo = ReceiptsClickRepository(client)
         receipts = await repo.get_by_organization_id(organization_id, limit)
@@ -171,29 +167,8 @@ class ReceiptsClickRouter(APIRouter):
                 detail=f"Чеки для организации с ID {organization_id} не найдены",
             )
 
-        organization_data = None
-        if include_organization_details:
-            try:
-                org_repo = OrganizationsRepo(pg_session)
-                organization = await org_repo.get_one_by_id(organization_id)
-                if organization:
-                    organization_data = OrganizationDto.model_validate(organization)
-                else:
-                    logger.warning(
-                        f"Организация с ID {organization_id} не найдена в PostgreSQL"
-                    )
-            except Exception as e:
-                logger.error(f"Ошибка при получении организации из PostgreSQL: {e}")
-
-        result = []
-        for receipt in receipts:
-            receipt_dict = receipt.model_dump()
-            if organization_data:
-                receipt_dict["organization"] = organization_data
-            result.append(ReceiptsWithKkmDto(**receipt_dict))
-
         logger.info(f"Найдено {len(receipts)} чеков для организации {organization_id}")
-        return result
+        return receipts
 
     @sub_router.get("/fiscal-kkm-reg-number")
     @cache(expire=cache_ttl, key_builder=request_key_builder)
@@ -255,18 +230,13 @@ class ReceiptsClickRouter(APIRouter):
     @cache(expire=cache_ttl, key_builder=request_key_builder)
     async def get_receipts_by_fiscal_and_organization_id(
         dto: Annotated[GetReceiptByFiscalOrganizationClickDto, Query()],
-        include_organization_details: bool = Query(
-            default=False, description="Включить детальную информацию об организации"
-        ),
         client: Client = Depends(get_clickhouse_client),
-        pg_session: AsyncSession = Depends(get_session_with_commit),
     ) -> List[ReceiptsWithKkmDto]:
         """
         Получить чеки по фискальному признаку и ID организации
 
         - **fiskal_sign**: фискальный признак
         - **organization_id**: ID организации
-        - **include_organization_details**: получить детальную информацию об организации из PostgreSQL(with id)
         """
         kkms_repo = KkmsClickRepository(client)
         kkms = await kkms_repo.get_by_organization_id(dto.organization_id)
@@ -304,27 +274,10 @@ class ReceiptsClickRouter(APIRouter):
                 detail=f"Чеки по фискальному признаку {dto.fiskal_sign} и организации {dto.organization_id} не найдены",
             )
 
-        organization_data = None
-        if include_organization_details:
-            try:
-                org_repo = OrganizationsRepo(pg_session)
-                organization = await org_repo.get_one_by_id(dto.organization_id)
-                if organization:
-                    organization_data = OrganizationDto.model_validate(organization)
-            except Exception as e:
-                logger.error(f"Ошибка при получении организации из PostgreSQL: {e}")
-
-        result = []
-        for receipt in all_receipts:
-            receipt_dict = receipt.model_dump()
-            if organization_data:
-                receipt_dict["organization"] = organization_data
-            result.append(ReceiptsWithKkmDto(**receipt_dict))
-
         logger.info(
             f"Найдено {len(all_receipts)} чеков по фискальному признаку {dto.fiskal_sign} и организации {dto.organization_id}"
         )
-        return result
+        return all_receipts
 
     @sub_router.get("/stats/kkm/{kkm_id}")
     @cache(expire=cache_ttl, key_builder=request_key_builder)
@@ -350,5 +303,105 @@ class ReceiptsClickRouter(APIRouter):
         return stats
 
 
+class StatsClickRouter(APIRouter):
+    """Роутер для работы со статистикой из ClickHouse - ТОЛЬКО таблицы stat_day и stat_year"""
+
+    sub_router = APIRouter(prefix="/stats", tags=["clickhouse: stats"])
+
+    def __init__(self):
+        super().__init__()
+        self.include_router(self.sub_router)
+
+    @sub_router.get("/day/{kkm_id}")
+    @cache(expire=cache_ttl, key_builder=request_key_builder)
+    async def get_day_stats_by_kkm_id(
+        kkm_id: int,
+        client: Client = Depends(get_clickhouse_client),
+    ) -> StatDayDto:
+        """
+        Получить статистику за день для ККМ из таблицы stat_day
+
+        - **kkm_id**: ID ККМ
+
+        Возвращает:
+        - kkms_id: ID ККМ
+        - check_sum: сумма чеков за день
+        - check_count: количество чеков за день
+        """
+        repo = StatsClickRepository(client)
+        stats = await repo.get_day_stats_by_kkm_id(kkm_id)
+
+        if not stats:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Статистика за день для ККМ с ID {kkm_id} не найдена",
+            )
+
+        logger.info(
+            f"Получена статистика за день для ККМ {kkm_id}: сумма={stats.check_sum}, количество={stats.check_count}"
+        )
+        return stats
+
+    @sub_router.get("/year/{kkm_id}")
+    @cache(expire=cache_ttl, key_builder=request_key_builder)
+    async def get_year_stats_by_kkm_id(
+        kkm_id: int,
+        client: Client = Depends(get_clickhouse_client),
+    ) -> StatYearDto:
+        """
+        Получить статистику за год для ККМ из таблицы stat_year
+
+        - **kkm_id**: ID ККМ
+
+        Возвращает:
+        - kkms_id: ID ККМ
+        - check_sum: сумма чеков за год
+        - check_count: количество чеков за год
+        """
+        repo = StatsClickRepository(client)
+        stats = await repo.get_year_stats_by_kkm_id(kkm_id)
+
+        if not stats:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Статистика за год для ККМ с ID {kkm_id} не найдена",
+            )
+
+        logger.info(
+            f"Получена статистика за год для ККМ {kkm_id}: сумма={stats.check_sum}, количество={stats.check_count}"
+        )
+        return stats
+
+    @sub_router.get("/combined/{kkm_id}")
+    @cache(expire=cache_ttl, key_builder=request_key_builder)
+    async def get_combined_stats_by_kkm_id(
+        kkm_id: int,
+        client: Client = Depends(get_clickhouse_client),
+    ) -> KkmStatsDto:
+        """
+        Получить объединенную статистику (день + год) для ККМ
+
+        - **kkm_id**: ID ККМ
+
+        Возвращает:
+        - kkms_id: ID ККМ
+        - day_stats: статистика за день (сумма и количество)
+        - year_stats: статистика за год (сумма и количество)
+        """
+        stats_repo = StatsClickRepository(client)
+        combined_stats = await stats_repo.get_combined_stats_by_kkm_id(kkm_id)
+
+        # Если нет ни дневной, ни годовой статистики, возвращаем 404
+        if not combined_stats.day_stats and not combined_stats.year_stats:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Статистика для ККМ с ID {kkm_id} не найдена",
+            )
+
+        logger.info(f"Получена объединенная статистика для ККМ {kkm_id}")
+        return combined_stats
+
+
 router.include_router(KkmsClickRouter())
 router.include_router(ReceiptsClickRouter())
+router.include_router(StatsClickRouter())

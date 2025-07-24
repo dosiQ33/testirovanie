@@ -1,14 +1,13 @@
 from typing import Optional, List
 from datetime import datetime
-from pydantic import Field
+from pydantic import Field, ConfigDict
 from app.modules.common.dto import BasestDto, BaseDto
-from app.modules.ckf.dtos import (
-    OrganizationDto,
-)
 
 
 class KkmsClickDto(BasestDto):
     """DTO для ККМ из ClickHouse"""
+
+    model_config = ConfigDict(protected_namespaces=())
 
     id: Optional[int] = None
     organization_id: Optional[int] = None
@@ -43,10 +42,9 @@ class ReceiptsClickDto(BasestDto):
 
 
 class ReceiptsWithKkmDto(ReceiptsClickDto):
-    """DTO для чеков с информацией о ККМ и опционально об организации"""
+    """DTO для чеков с информацией о ККМ"""
 
     kkm: Optional[KkmsClickDto] = None
-    organization: Optional[OrganizationDto] = None
 
 
 class ReceiptsFilterDto(BasestDto):
@@ -95,3 +93,28 @@ class GetReceiptByFiscalOrganizationClickDto(BasestDto):
 
     fiskal_sign: str = Field()
     organization_id: int
+
+
+# DTO только для статистики из ClickHouse
+class StatDayDto(BasestDto):
+    """DTO для статистики за день из таблицы stat_day"""
+
+    kkms_id: int
+    check_sum: Optional[int] = None
+    check_count: int
+
+
+class StatYearDto(BasestDto):
+    """DTO для статистики за год из таблицы stat_year"""
+
+    kkms_id: int
+    check_sum: Optional[int] = None
+    check_count: int
+
+
+class KkmStatsDto(BasestDto):
+    """DTO для объединенной статистики ККМ за день и год"""
+
+    kkms_id: int
+    day_stats: Optional[StatDayDto] = None
+    year_stats: Optional[StatYearDto] = None

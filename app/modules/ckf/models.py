@@ -205,8 +205,11 @@ class Persons(BaseModel):
     )
 
 
-class EsfSeller(BaseModel):
+class EsfSeller(BasestModel):
+    __tablename__ = "esf_seller"
     __table_args__ = dict(comment="ЭСФ реализация за год")
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
 
     """Организация"""
     organization_id: Mapped[int] = mapped_column(
@@ -228,8 +231,11 @@ class EsfSeller(BaseModel):
     )
 
 
-class EsfSellerDaily(BaseModel):
+class EsfSellerDaily(BasestModel):
+    __tablename__ = "esf_seller_daily"
     __table_args__ = dict(comment="ЭСФ реализация за 1 день")
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
 
     """Организация"""
     organization_id: Mapped[int] = mapped_column(
@@ -282,8 +288,11 @@ class EsfSellerMonth(BasestModel):
     )
 
 
-class EsfBuyer(BaseModel):
+class EsfBuyer(BasestModel):
+    __tablename__ = "esf_buyer"
     __table_args__ = dict(comment="ЭСФ приобретение за год")
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
 
     """Организация"""
     organization_id: Mapped[int] = mapped_column(
@@ -301,8 +310,11 @@ class EsfBuyer(BaseModel):
     )
 
 
-class EsfBuyerDaily(BaseModel):
+class EsfBuyerDaily(BasestModel):
+    __tablename__ = "esf_buyer_daily"
     __table_args__ = dict(comment="ЭСФ приобретение за 1 день")
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
 
     """Организация"""
     organization_id: Mapped[int] = mapped_column(
@@ -406,10 +418,14 @@ class Receipts(BaseModel):
     # updated_date: Mapped[datetime] = mapped_column(comment="Дата заливки данных", nullable=True)
 
     # SZPT
-    # has_szpt_violation: Mapped[bool] = mapped_column(comment="Нарушение СЗПТ", nullable=True, default=False)
-    # current_max_price: Mapped[float] = mapped_column(comment="Максимальная цена товара на текущий момент", nullable=True)
-    # szpt: Mapped[str] = mapped_column(comment="СЗПТ", nullable=True)
-    # szpt_id: Mapped[int] = mapped_column(comment="СЗПТ ID", nullable=True)
+    has_szpt_violation: Mapped[bool] = mapped_column(
+        comment="Нарушение СЗПТ", nullable=True, default=False
+    )
+    current_max_price: Mapped[float] = mapped_column(
+        comment="Максимальная цена товара на текущий момент", nullable=True
+    )
+    szpt: Mapped[str] = mapped_column(comment="СЗПТ", nullable=True)
+    szpt_id: Mapped[int] = mapped_column(comment="СЗПТ ID", nullable=True)
 
 
 class ReceiptsAnnual(BaseModel):
@@ -438,3 +454,13 @@ class ReceiptsDaily(BaseModel):
     check_sum: Mapped[float] = mapped_column(comment="Общая сумма", nullable=True)
     check_count: Mapped[int] = mapped_column(comment="Количество чеков", nullable=True)
     date_check: Mapped[date] = mapped_column(Date, comment="Дата", nullable=True)
+
+
+class DicSzpt(BasestModel):
+    __tablename__ = "dic_szpt_products"
+    __table_args__ = dict(comment="СЗПТ")
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    product_name: Mapped[str] = mapped_column(name="product_name", nullable=True)
+    unit: Mapped[str] = mapped_column(name="unit", nullable=True)
+    price: Mapped[int] = mapped_column(name="price", nullable=True)

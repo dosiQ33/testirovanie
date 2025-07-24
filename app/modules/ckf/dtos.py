@@ -251,6 +251,11 @@ class ReceiptsDailyDto(BaseDto):
     check_count: int
     date_check: Optional[date] = None
 
+class SzptDto(BaseDto):
+    product_name: str
+    unit: str
+    price: Optional[int]
+
 
 class ReceiptsSummaryDto(BaseDto):
     kkms_id: int

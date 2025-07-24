@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     POSTGRES_DB: str
 
     # ClickHouse settings
-    CLICKHOUSE_HOST: str = "localhost"
+    CLICKHOUSE_HOST: str = "coc_db_clickhouse"
     CLICKHOUSE_PORT: int = 8123
     CLICKHOUSE_USER: str = "coc_admin"
     CLICKHOUSE_PASSWORD: str = "QAZqaz123"

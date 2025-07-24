@@ -17,6 +17,13 @@ class ClickHouseClient:
         """Get ClickHouse client instance"""
         if self._client is None:
             try:
+                logger.info(f"Attempting to connect to ClickHouse:")
+                logger.info(f"  Host: {settings.CLICKHOUSE_HOST}")
+                logger.info(f"  Port: {settings.CLICKHOUSE_PORT}")
+                logger.info(f"  User: {settings.CLICKHOUSE_USER}")
+                logger.info(f"  Database: {settings.CLICKHOUSE_DATABASE}")
+                logger.info(f"  Secure: {settings.CLICKHOUSE_SECURE}")
+
                 self._client = clickhouse_connect.get_client(
                     host=settings.CLICKHOUSE_HOST,
                     port=settings.CLICKHOUSE_PORT,
@@ -28,10 +35,13 @@ class ClickHouseClient:
                     send_receive_timeout=60,
                 )
                 logger.info(
-                    f"Connected to ClickHouse at {settings.CLICKHOUSE_HOST}:{settings.CLICKHOUSE_PORT}"
+                    f"Successfully connected to ClickHouse at {settings.CLICKHOUSE_HOST}:{settings.CLICKHOUSE_PORT}"
                 )
             except Exception as e:
                 logger.error(f"Failed to connect to ClickHouse: {e}")
+                logger.error(
+                    f"Connection details: {settings.CLICKHOUSE_HOST}:{settings.CLICKHOUSE_PORT}"
+                )
                 raise
 
         return self._client

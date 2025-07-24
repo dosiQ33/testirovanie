@@ -9,6 +9,9 @@ from .dtos import (
     ReceiptsWithKkmDto,
     ReceiptsFilterDto,
     ReceiptsStatsDto,
+    StatDayDto,
+    StatYearDto,
+    KkmStatsDto,
 )
 
 
@@ -380,4 +383,63 @@ class ReceiptsClickRepository(BaseClickRepository):
 
         except Exception as e:
             logger.error(f"Ошибка при получении статистики по kkm_id {kkm_id}: {e}")
+            raise
+
+
+class StatsClickRepository(BaseClickRepository):
+    """Репозиторий для работы со статистикой в ClickHouse - ТОЛЬКО таблицы stat_day и stat_year"""
+
+    async def get_day_stats_by_kkm_id(self, kkm_id: int) -> Optional[StatDayDto]:
+        """Получить статистику за день для ККМ из таблицы stat_day"""
+        try:
+            query = "SELECT kkms_id, check_sum, check_count FROM stat_day WHERE kkms_id = %(kkm_id)s LIMIT 1"
+            result = self.client.query(query, parameters={"kkm_id": kkm_id})
+
+            if not result.result_rows:
+                logger.info(f"Статистика за день для ККМ {kkm_id} не найдена")
+                return None
+
+            row_dict = self._row_to_dict(result.result_rows[0], result.column_names)
+            return StatDayDto(**row_dict)
+
+        except Exception as e:
+            logger.error(
+                f"Ошибка при получении статистики за день для ККМ {kkm_id}: {e}"
+            )
+            raise
+
+    async def get_year_stats_by_kkm_id(self, kkm_id: int) -> Optional[StatYearDto]:
+        """Получить статистику за год для ККМ из таблицы stat_year"""
+        try:
+            query = "SELECT kkms_id, check_sum, check_count FROM stat_year WHERE kkms_id = %(kkm_id)s LIMIT 1"
+            result = self.client.query(query, parameters={"kkm_id": kkm_id})
+
+            if not result.result_rows:
+                logger.info(f"Статистика за год для ККМ {kkm_id} не найдена")
+                return None
+
+            row_dict = self._row_to_dict(result.result_rows[0], result.column_names)
+            return StatYearDto(**row_dict)
+
+        except Exception as e:
+            logger.error(
+                f"Ошибка при получении статистики за год для ККМ {kkm_id}: {e}"
+            )
+            raise
+
+    async def get_combined_stats_by_kkm_id(self, kkm_id: int) -> KkmStatsDto:
+        """Получить объединенную статистику (день + год) для ККМ"""
+        try:
+            # Получаем статистику за день и за год
+            day_stats = await self.get_day_stats_by_kkm_id(kkm_id)
+            year_stats = await self.get_year_stats_by_kkm_id(kkm_id)
+
+            return KkmStatsDto(
+                kkms_id=kkm_id, day_stats=day_stats, year_stats=year_stats
+            )
+
+        except Exception as e:
+            logger.error(
+                f"Ошибка при получении объединенной статистики для ККМ {kkm_id}: {e}"
+            )
             raise

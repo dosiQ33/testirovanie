@@ -70,6 +70,7 @@ from .dtos import (
     FnoBuildingsBarChartListResponseDto,
     FnoInfoListDto,
     KkmsInfoListDto,
+    SzptDto,
 )
 from .repository import (
     EsfBuyerDailyRepo,
@@ -84,6 +85,7 @@ from .repository import (
     ReceiptsRepo,
     RiskInfosRepo,
     EsfStatisticsRepo,
+    SzptRepo,
 )
 from .models import (
     EsfBuyer,
@@ -94,6 +96,7 @@ from .models import (
     Kkms,
     Receipts,
     RiskInfos,
+    DicSzpt,
 )  # noqa
 from .mappers import to_organization_count_by_regions_response
 from datetime import date
@@ -897,6 +900,38 @@ class ReceiptsRouter(APIRouter):
                 detail="Чек не найден по указанному фискальному признаку и ИИН/БИН",
             )
         return [ReceiptsDto.model_validate(item) for item in response]
+    
+class SzptRouter(APIRouter):
+    sub_router = APIRouter(prefix="/szpt-products", tags=["ckf: szpt"])
+    base_router = BaseCRUDRouter('szpt-products', DicSzpt, SzptRepo, SzptDto, tags=["ckf: szpt"])
+
+    def __init__(self):
+        super().__init__()
+
+        self.include_router(self.sub_router)
+        self.include_router(self.base_router)
+
+    @sub_router.get('/{product_id}/violations')
+    @cache(expire=cache_ttl, key_builder=request_key_builder)
+    async def get_all_kkms_with_violations_by_szpt(
+        product_id: int,
+        session: AsyncSession = Depends(get_session_without_commit),
+    ):
+        
+        response = await SzptRepo(session).get_all_kkms_with_violations_by_szpt(product_id)
+
+        return response
+    
+    @sub_router.get('/info/{kkm_id}/{szpt_id}')
+    @cache(expire=cache_ttl, key_builder=request_key_builder)
+    async def get_violations_count_by_kkm_id(
+        kkm_id: int,
+        szpt_id: int,
+        session: AsyncSession = Depends(get_session_without_commit),
+    ):
+        response = await SzptRepo(session).get_violations_count_by_kkm_id(kkm_id, szpt_id)
+
+        return response
 
 
 router.include_router(OrganizationsRouter())
@@ -909,5 +944,6 @@ router.include_router(EsfSellerDailyRouter())
 router.include_router(EsfBuyerRouter())
 router.include_router(EsfBuyerDailyRouter())
 router.include_router(EsfStatisticsRouter())
+router.include_router(SzptRouter())
 
 router.include_router(RiskInfosRouter())

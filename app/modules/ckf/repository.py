@@ -22,6 +22,7 @@ from sqlalchemy import (
     Text,
     DateTime,
     Numeric,
+    desc,
 )
 from sqlalchemy.orm import aliased
 from sqlalchemy.exc import SQLAlchemyError
@@ -1218,37 +1219,6 @@ class ReceiptsRepo(BaseWithKkmRepository):
 class SzptRepo(BaseRepository):
     model = DicSzpt
 
-    async def get_all_kkms_with_violations_by_szpt(self, szpt_id: int):
-        try:
-            query = (
-                select(
-                    Kkms.id,
-                    Kkms.reg_number,
-                    func.ST_AsText(Kkms.shape).label("shape")
-                )
-                .select_from(
-                    Kkms
-                )
-                .join(
-                    Receipts,
-                    Kkms.id == Receipts.kkms_id
-                )
-                .where(
-                    Receipts.has_szpt_violation == True,
-                    Receipts.szpt_id == szpt_id
-                )
-            )
-
-            result = await self._session.execute(query)
-            rows = result.all()
-
-            return {'kkms': 
-                    [dict(row._mapping) for row in rows]
-                }
-        except SQLAlchemyError as e:
-            logger.error(f'Ошибка при получении ККМ с нарушениями: {e}')
-            raise
-
     async def get_violations_count_by_kkm_id(self, kkm_id: int, szpt_id: int):
         try:
             query = (
@@ -1270,3 +1240,61 @@ class SzptRepo(BaseRepository):
         except SQLAlchemyError as e:
             logger.error(f'Ошибка при получении ККМ с нарушениями: {e}')
             raise
+
+    async def get_last_receipt_with_violation(self, kkm_id: int, szpt_id: int):
+        try:
+            query_info = (
+                select(
+                    Kkms.reg_number,
+                    Kkms.serial_number,
+                    Receipts.fiskal_sign,
+                    func.to_char(Receipts.operation_date, 'DD-MM-YYYY').label('date'),
+                    func.to_char(Receipts.operation_date, 'HH24:MI:SS').label('time')
+                )
+                .join(
+                    Receipts,
+                    Kkms.id == Receipts.kkms_id
+                )
+                .where(
+                    Kkms.id == kkm_id,
+                    Receipts.szpt_id == szpt_id,
+                    Receipts.has_szpt_violation.is_(True),
+                )
+                .order_by(desc(Receipts.operation_date))
+                .limit(1)
+            )
+
+            result = await self._session.execute(query_info)
+            row = result.one()
+
+            return dict(row._mapping)
+        except SQLAlchemyError as e:
+            logger.error(f'Ошибка при получении ККМ с нарушениями: {e}')
+            raise  
+
+    async def get_receipt_content(self, fiskal_sign: int):
+        try:
+            query = (
+                select(
+                    Receipts.item_name,
+                    Receipts.price_per_unit,
+                    DicSzpt.unit,
+                    Receipts.full_item_price,
+                    func.sum(Receipts.full_item_price).label('total_receipt_sum')
+                )
+                .join(
+                    DicSzpt,
+                    Receipts.szpt_id == DicSzpt.id
+                )
+                .where(
+                    Receipts.fiskal_sign == fiskal_sign,
+                )
+            )
+
+            result = await self._session.execute(query)
+            rows = result.all()
+
+            return {'smth'}
+        except SQLAlchemyError as e:
+            logger.error(f'Ошибка при получении ККМ с нарушениями: {e}')
+            raise      

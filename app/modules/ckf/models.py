@@ -395,7 +395,7 @@ class Receipts(BaseModel):
     )
     kkm: Mapped["Kkms"] = relationship("Kkms", lazy="selectin")  # ОСТОРОЖНО!!!
 
-    operation_date: Mapped[str] = mapped_column(
+    operation_date: Mapped[date] = mapped_column(
         comment="Дата и время совершения кассовой операции", nullable=True
     )
     auto_fiskal_mark_check: Mapped[str] = mapped_column(
@@ -412,9 +412,7 @@ class Receipts(BaseModel):
     item_nds: Mapped[float] = mapped_column(comment="НДС", nullable=True)
     full_item_price: Mapped[float] = mapped_column(comment="Итог", nullable=True)
     payment_type: Mapped[int] = mapped_column(comment="Вид оплаты", nullable=True)
-    operation_date_new: Mapped[datetime] = mapped_column(
-        comment="operation_date в формате timestamp", nullable=True
-    )
+
     # updated_date: Mapped[datetime] = mapped_column(comment="Дата заливки данных", nullable=True)
 
     # SZPT
@@ -426,6 +424,7 @@ class Receipts(BaseModel):
     )
     szpt: Mapped[str] = mapped_column(comment="СЗПТ", nullable=True)
     szpt_id: Mapped[int] = mapped_column(comment="СЗПТ ID", nullable=True)
+    price_per_unit: Mapped[float] = mapped_column(comment="", nullable=True)
 
 
 class ReceiptsAnnual(BaseModel):

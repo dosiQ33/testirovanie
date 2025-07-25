@@ -910,17 +910,6 @@ class SzptRouter(APIRouter):
 
         self.include_router(self.sub_router)
         self.include_router(self.base_router)
-
-    @sub_router.get('/{product_id}/violations')
-    @cache(expire=cache_ttl, key_builder=request_key_builder)
-    async def get_all_kkms_with_violations_by_szpt(
-        product_id: int,
-        session: AsyncSession = Depends(get_session_without_commit),
-    ):
-        
-        response = await SzptRepo(session).get_all_kkms_with_violations_by_szpt(product_id)
-
-        return response
     
     @sub_router.get('/info/{kkm_id}/{szpt_id}')
     @cache(expire=cache_ttl, key_builder=request_key_builder)
@@ -933,6 +922,24 @@ class SzptRouter(APIRouter):
 
         return response
 
+    @sub_router.get('/last-receipt/{kkm_id}/{szpt_id}')
+    @cache(expire=cache_ttl, key_builder=request_key_builder)
+    async def get_last_receipt_with_violation(
+        kkm_id: int,
+        szpt_id: int,
+        session: AsyncSession = Depends(get_session_without_commit),
+    ):
+        response = await SzptRepo(session).get_last_receipt_with_violation(kkm_id, szpt_id)
+
+        return response
+
+    @sub_router.get('/last-receipt/{fiskal_sign}')
+    @cache(expire=cache_ttl, key_builder=request_key_builder)
+    async def get_receipt_content(
+        fiskal_sign: int,
+        session: AsyncSession = Depends(get_session_without_commit),
+    ):
+        pass
 
 router.include_router(OrganizationsRouter())
 router.include_router(KkmsRouter())

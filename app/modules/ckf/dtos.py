@@ -226,7 +226,6 @@ class ReceiptsDto(BaseDto):
     item_nds: Optional[float]
     full_item_price: Optional[float]
     payment_type: Optional[int]
-    operation_date_new: Optional[datetime]
     # updated_date: Optional[datetime]
 
     @field_serializer("fiskal_sign")
@@ -250,6 +249,7 @@ class ReceiptsDailyDto(BaseDto):
     check_sum: float
     check_count: int
     date_check: Optional[date] = None
+
 
 class SzptDto(BaseDto):
     product_name: str

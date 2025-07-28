@@ -405,3 +405,18 @@ class KkmsInfoDto(BasestDto):
 
 class KkmsInfoListDto(BasestDto):
     info: List[KkmsInfoDto]
+
+class ProductsViolationDto(BasestDto):
+    item_name: str
+    full_item_price: float
+    price_per_unit: Optional[float]
+    has_szpt_violation: bool
+    unit: Optional[str]
+
+class LastCheckViolationDto(BasestDto):
+    products: List[ProductsViolationDto]
+    payment_type: str
+    check_sum: float
+    nds_sum: float
+    overcharge: float
+    percent: float

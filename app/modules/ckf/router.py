@@ -14,6 +14,8 @@ from datetime import datetime
 from loguru import logger
 from fastapi_cache.decorator import cache
 
+from math import ceil
+
 from app.database.deps import get_session_with_commit, get_session_without_commit
 from app.modules.common.dto import (
     Bbox,
@@ -71,6 +73,8 @@ from .dtos import (
     FnoInfoListDto,
     KkmsInfoListDto,
     SzptDto,
+    ProductsViolationDto,
+    LastCheckViolationDto
 )
 from .repository import (
     EsfBuyerDailyRepo,
@@ -933,13 +937,47 @@ class SzptRouter(APIRouter):
 
         return response
 
-    @sub_router.get('/last-receipt/{fiskal_sign}')
+    @sub_router.get('/last-receipt/{fiskal_sign}', response_model=LastCheckViolationDto)
     @cache(expire=cache_ttl, key_builder=request_key_builder)
     async def get_receipt_content(
         fiskal_sign: int,
         session: AsyncSession = Depends(get_session_without_commit),
     ):
-        pass
+        payment_types = {
+            0: 'Оплата наличными',
+            1: 'Карта',
+            4: 'Мобильная оплата'
+        }
+        
+        response = await SzptRepo(session).get_receipt_content(fiskal_sign)
+
+        payment_type = payment_types.get(response["products"][0]['payment_type'])
+        check_sum = sum(resp['full_item_price'] for resp in response['products'])
+        nds_sum = sum(resp['item_nds'] for resp in response['products'])
+        
+        overcharge = 0
+        price_per_unit = 0
+        current_max_price = 0
+        for resp in response['products']:
+            if resp['has_szpt_violation'] == True:
+                overcharge += resp['price_per_unit'] - resp['current_max_price']
+                price_per_unit += resp["price_per_unit"]
+                current_max_price += resp["current_max_price"]
+
+        percent = round(((price_per_unit - current_max_price) / current_max_price) * 100, 2)
+
+        products = [
+            ProductsViolationDto(
+                item_name=prod["item_name"],
+                full_item_price=prod["full_item_price"],
+                price_per_unit=prod.get("price_per_unit"),
+                has_szpt_violation=prod.get("has_szpt_violation", False),
+                unit=prod.get('unit')
+            )
+            for prod in response.get("products", [])
+        ]
+
+        return LastCheckViolationDto(products=products, payment_type=payment_type, check_sum=check_sum, nds_sum=nds_sum, percent=percent, overcharge=overcharge)
 
 router.include_router(OrganizationsRouter())
 router.include_router(KkmsRouter())

@@ -395,7 +395,7 @@ class Receipts(BaseModel):
     )
     kkm: Mapped["Kkms"] = relationship("Kkms", lazy="selectin")  # ОСТОРОЖНО!!!
 
-    operation_date: Mapped[date] = mapped_column(
+    operation_date: Mapped[datetime] = mapped_column(
         comment="Дата и время совершения кассовой операции", nullable=True
     )
     auto_fiskal_mark_check: Mapped[str] = mapped_column(
@@ -453,6 +453,19 @@ class ReceiptsDaily(BaseModel):
     check_sum: Mapped[float] = mapped_column(comment="Общая сумма", nullable=True)
     check_count: Mapped[int] = mapped_column(comment="Количество чеков", nullable=True)
     date_check: Mapped[date] = mapped_column(Date, comment="Дата", nullable=True)
+
+class ReceiptsMonthly(BasestModel):
+    __tablename__ = 'receipts_month'
+    __table_args__ = dict(comment='Чеки за месяц')
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    kkms_id: Mapped[int] = mapped_column(
+        ForeignKey('kkms.id'), comment='ККМ', nullable=False
+    )
+
+    check_sum: Mapped[int] = mapped_column(comment='Сумма чека', nullable=True)
+    check_count: Mapped[int] = mapped_column(comment='Количество чеков', nullable=True)
+    month: Mapped[date] = mapped_column(comment='Дата', nullable=True)
 
 
 class DicSzpt(BasestModel):

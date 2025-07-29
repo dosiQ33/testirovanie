@@ -68,7 +68,7 @@ from .models import (
     ReceiptsDaily,
     RiskInfos,
     DicSzpt,
-    ReceiptsMonthly
+    ReceiptsMonthly,
 )
 from typing import Optional
 from datetime import date, datetime
@@ -293,7 +293,9 @@ class OrganizationsRepo(BaseRepository):
                         "seller_total_amount"
                     ),
                     func.coalesce(EsfBuyer.total_amount, 0).label("buyer_total_amount"),
-                    func.coalesce(func.sum(ReceiptsAnnual.check_sum), 0).label("kkm_total_amount"),
+                    func.coalesce(func.sum(ReceiptsAnnual.check_sum), 0).label(
+                        "kkm_total_amount"
+                    ),
                 )
                 .outerjoin(EsfSeller, Organizations.id == EsfSeller.organization_id)
                 .outerjoin(EsfBuyer, Organizations.id == EsfBuyer.organization_id)
@@ -395,13 +397,11 @@ class KkmsRepo(BaseRepository):
             query = (
                 select(func.count())
                 .select_from(Kkms)
-                .join(
-                    Organizations,
-                    Kkms.organization_id == Organizations.id
-                )
+                .join(Organizations, Kkms.organization_id == Organizations.id)
                 .where(
                     and_(
-                        ST_Within(Organizations.shape, territory_geom), Kkms.date_stop.is_(None)
+                        ST_Within(Organizations.shape, territory_geom),
+                        Kkms.date_stop.is_(None),
                     )
                 )
             )
@@ -413,17 +413,21 @@ class KkmsRepo(BaseRepository):
             logger.error(f"Ошибка при поиске всех записей по фильтрам {filters}: {e}")
             raise
 
-#
+    #
     async def get_kkms_by_month(self, filters: BuildingsFilterDto):
         territory_geom = territory_to_geo_element(territory=filters.territory)
         try:
-            month_trunc = cast(func.extract("month", ReceiptsMonthly.month), Integer).label(
-                "month"
-            )
+            month_trunc = cast(
+                func.extract("month", ReceiptsMonthly.month), Integer
+            ).label("month")
 
             columns = [month_trunc]
 
-            columns.append(func.round(func.sum(func.cast(ReceiptsMonthly.check_sum, Numeric)), 2).label("turnover"))
+            columns.append(
+                func.round(
+                    func.sum(func.cast(ReceiptsMonthly.check_sum, Numeric)), 2
+                ).label("turnover")
+            )
 
             if filters.floor == FloorEnum.kkm:
                 columns.append(
@@ -625,19 +629,49 @@ class FnoRepo(BaseWithOrganizationRepository):
     async def get_fno_bar_char_by_building(self, filters: BuildingsFilterDto):
         territory_geom = territory_to_geo_element(filters.territory)
         try:
-            query = (
+            periods_cte = select(func.generate_series(0, 6).label("period")).cte(
+                "periods"
+            )
+
+            data_cte = (
                 select(
-                    Fno.type_id.label("quarter"),
-                    func.sum(Fno.fno_910_00 + Fno.fno_300_00).label("total_sum"),
+                    Fno.type_id.label("period"),
+                    func.sum(
+                        case(
+                            (
+                                Fno.type_id.in_((1, 2, 3, 4)),
+                                func.coalesce(Fno.fno_913_00, 0)
+                                + func.coalesce(Fno.fno_300_00, 0),
+                            ),
+                            (Fno.type_id.in_((5, 6)), func.coalesce(Fno.fno_910_00, 0)),
+                            else_=func.coalesce(Fno.fno_920_00, 0),
+                        )
+                    ).label("total_sum"),
                 )
                 .join(Organizations, Fno.organization_id == Organizations.id)
                 .where(
-                    Fno.type_id.in_([1, 2, 3, 4]),
-                    func.ST_Intersects(Organizations.shape, territory_geom),
-                    Organizations.date_stop.is_(None),
+                    and_(
+                        Fno.year == 2025,
+                        Fno.type_id.in_((0, 1, 2, 3, 4, 5, 6)),
+                        func.ST_Intersects(Organizations.shape, territory_geom),
+                        Organizations.date_stop.is_(None),
+                    )
                 )
                 .group_by(Fno.type_id)
-                .order_by(Fno.type_id)
+                .cte("data")
+            )
+
+            query = (
+                select(
+                    periods_cte.c.period,
+                    func.coalesce(data_cte.c.total_sum, 0).label("total_sum"),
+                )
+                .select_from(
+                    periods_cte.outerjoin(
+                        data_cte, periods_cte.c.period == data_cte.c.period
+                    )
+                )
+                .order_by(periods_cte.c.period)
             )
 
             result = await self._session.execute(query)
@@ -750,7 +784,9 @@ class EsfStatisticsRepo(BaseWithOrganizationRepository):
     ):
         select_items = [
             literal(model.__tablename__).label("source"),
-            func.round(func.coalesce(func.sum(model.total_amount.cast(Numeric)), 0), 2).label("turnover"),
+            func.round(
+                func.coalesce(func.sum(model.total_amount.cast(Numeric)), 0), 2
+            ).label("turnover"),
         ]
 
         query = select(*select_items)
@@ -1202,30 +1238,8 @@ class ReceiptsRepo(BaseWithKkmRepository):
                 )
             )
 
-            daily_receipts_query_1 = (
-                select(
-                    func.coalesce(func.sum(ReceiptsDaily.check_sum), 0).label(
-                        "daily_turnover"
-                    ),
-                    Kkms.reg_number
-                )
-                .select_from(ReceiptsDaily)
-                .join(Kkms, ReceiptsDaily.kkms_id == Kkms.id)
-                .filter(
-                    Kkms.date_stop.is_(None),
-                    # ReceiptsDaily.date_check == current_date,
-                    func.ST_Within(Kkms.shape, territory),
-                )
-                .group_by(Kkms.reg_number)
-            )
-
             daily_receipts_result = await self._session.execute(daily_receipts_query)
             daily_result = daily_receipts_result.one()
-            
-            daily_receipts_result_1 = await self._session.execute(daily_receipts_query_1)
-            daily_result_1 = daily_receipts_result_1.mappings().all()
-
-            print(daily_result_1)
 
             annual_receipts_result = await self._session.execute(annual_receipts_query)
             annual_result = annual_receipts_result.one()
@@ -1239,20 +1253,53 @@ class ReceiptsRepo(BaseWithKkmRepository):
             logger.error(f"Ошибка при получении агрегированной статистики ККМ: {e}")
             raise
 
+    async def get_latest_receipts_with_details(self, limit: int = 100):
+        try:
+            query = (
+                select(
+                    Receipts.fiskal_sign,
+                    Kkms.reg_number,
+                    Receipts.full_item_price,
+                    Kkms.serial_number,
+                    Receipts.operation_date,
+                    Organizations.name_ru,
+                    Kkms.address,
+                    Receipts.item_name,
+                    Receipts.item_price,
+                    Receipts.item_count,
+                    Receipts.item_nds,
+                    Receipts.payment_type,
+                )
+                .select_from(Receipts)
+                .outerjoin(Kkms, Kkms.id == Receipts.kkms_id)
+                .outerjoin(Organizations, Organizations.id == Kkms.organization_id)
+                .order_by(desc(Receipts.operation_date))
+                .limit(limit)
+            )
+
+            result = await self._session.execute(query)
+            records = result.all()
+
+            logger.info(f"Найдено {len(records)} записей последних чеков с деталями.")
+
+            return [dict(record._mapping) for record in records]
+        except SQLAlchemyError as e:
+            logger.error(f"Ошибка при получении последних чеков с деталями: {e}")
+            raise
+
+
 class SzptRepo(BaseRepository):
     model = DicSzpt
 
     async def get_violations_count_by_kkm_id(self, kkm_id: int, szpt_id: int):
         try:
             query = (
-                select(
-                    func.count()
-                )
+                select(func.count())
                 .select_from(Receipts)
                 .where(
                     Receipts.kkms_id == kkm_id,
                     Receipts.has_szpt_violation == True,
-                    Receipts.szpt_id == szpt_id
+                    Receipts.szpt_id == szpt_id,
                 )
             )
 
@@ -1261,7 +1308,7 @@ class SzptRepo(BaseRepository):
 
             return dict(row._mapping)
         except SQLAlchemyError as e:
-            logger.error(f'Ошибка при получении ККМ с нарушениями: {e}')
+            logger.error(f"Ошибка при получении ККМ с нарушениями: {e}")
             raise
 
     async def get_last_receipt_with_violation(self, kkm_id: int, szpt_id: int):
@@ -1271,13 +1318,10 @@ class SzptRepo(BaseRepository):
                     Kkms.reg_number,
                     Kkms.serial_number,
                     Receipts.fiskal_sign,
-                    func.to_char(Receipts.operation_date, 'DD-MM-YYYY').label('date'),
-                    func.to_char(Receipts.operation_date, 'HH24:MI:SS').label('time')
+                    func.to_char(Receipts.operation_date, "DD-MM-YYYY").label("date"),
+                    func.to_char(Receipts.operation_date, "HH24:MI:SS").label("time"),
                 )
-                .join(
-                    Receipts,
-                    Kkms.id == Receipts.kkms_id
-                )
+                .join(Receipts, Kkms.id == Receipts.kkms_id)
                 .where(
                     Kkms.id == kkm_id,
                     Receipts.szpt_id == szpt_id,
@@ -1292,8 +1336,8 @@ class SzptRepo(BaseRepository):
 
             return dict(row._mapping)
         except SQLAlchemyError as e:
-            logger.error(f'Ошибка при получении ККМ с нарушениями: {e}')
-            raise  
+            logger.error(f"Ошибка при получении ККМ с нарушениями: {e}")
+            raise
 
     async def get_receipt_content(self, fiskal_sign: int):
         try:
@@ -1305,24 +1349,21 @@ class SzptRepo(BaseRepository):
                     Receipts.current_max_price,
                     Receipts.full_item_price,
                     Receipts.payment_type,
-                    func.coalesce(Receipts.has_szpt_violation, False).label('has_szpt_violation'),
-                    DicSzpt.unit
+                    func.coalesce(Receipts.has_szpt_violation, False).label(
+                        "has_szpt_violation"
+                    ),
+                    DicSzpt.unit,
                 )
-                .outerjoin(
-                    DicSzpt,
-                    Receipts.szpt_id == DicSzpt.id
-                )
-                .where(
-                    Receipts.fiskal_sign == fiskal_sign
-                )
+                .outerjoin(DicSzpt, Receipts.szpt_id == DicSzpt.id)
+                .where(Receipts.fiskal_sign == fiskal_sign)
             )
 
             result = await self._session.execute(query)
             rows = result.mappings().all()
 
-            return {'products':
-                    [dict(row) for row in rows],
-                    }
+            return {
+                "products": [dict(row) for row in rows],
+            }
         except SQLAlchemyError as e:
-            logger.error(f'Ошибка при получении ККМ с нарушениями: {e}')
-            raise      
+            logger.error(f"Ошибка при получении ККМ с нарушениями: {e}")
+            raise

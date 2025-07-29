@@ -22,6 +22,13 @@ from app.modules.ext.okeds.dtos import OkedsDto
 from app.modules.nsi.dtos import CommonRefDto, SimpleRefDto
 
 
+class PersonsDto(BaseDto):
+    iin: str
+    name: str
+
+    # organizations: List[OrganizationDto] = Field(default_factory=list)
+
+
 class KkmsDto(DtoWithShape):
     organization_id: int
 
@@ -68,7 +75,7 @@ class OrganizationDto(DtoWithShape):
     jur_fiz: Optional[int] = None
 
     leader_id: Optional[int]
-    leader: Optional[SimpleRefDto] = None
+    leader: Optional[PersonsDto] = None
 
     address: Optional[str]
 
@@ -167,18 +174,12 @@ class RiskInfosDto(BaseDto):
     ugd: Optional[CommonRefDto] = None
 
 
-class PersonsDto(BaseDto):
-    iin: str
-    name: str
-
-    organizations: List[OrganizationDto] = Field(default_factory=list)
-
-
 class EsfSellerBuyerSimpleDto(BaseDto):
     organization_id: Optional[int] = None
 
     total_amount: Optional[float] = None
     nds_amount: Optional[float] = None
+    num_esf: Optional[int] = None
 
 
 class EsfSellerBuyerDto(BaseDto):
@@ -187,6 +188,7 @@ class EsfSellerBuyerDto(BaseDto):
 
     total_amount: float
     nds_amount: float
+    num_esf: int
 
 
 class EsfMonthDto(BasestDto):
@@ -371,7 +373,7 @@ class EsfBuildingListResponseDto(BasestDto):
 
 
 class FnoBuildingsBarChartDto(BasestDto):
-    quarter: int
+    period: int
     total_sum: int
 
 
@@ -406,12 +408,14 @@ class KkmsInfoDto(BasestDto):
 class KkmsInfoListDto(BasestDto):
     info: List[KkmsInfoDto]
 
+
 class ProductsViolationDto(BasestDto):
     item_name: str
     full_item_price: float
     price_per_unit: Optional[float]
     has_szpt_violation: bool
     unit: Optional[str]
+
 
 class LastCheckViolationDto(BasestDto):
     products: List[ProductsViolationDto]
@@ -420,3 +424,22 @@ class LastCheckViolationDto(BasestDto):
     nds_sum: float
     overcharge: float
     percent: float
+
+
+class ReceiptDetailDto(BasestDto):
+    fiskal_sign: Optional[int] = Field()
+    reg_number: Optional[str] = None
+    full_item_price: Optional[float] = None
+    serial_number: Optional[str] = None
+    operation_date: Optional[datetime] = None
+    name_ru: Optional[str] = None
+    address: Optional[str] = None
+    item_name: Optional[str] = None
+    item_price: Optional[float] = None
+    item_count: Optional[float] = None
+    item_nds: Optional[float] = None
+    payment_type: Optional[int] = None
+
+    @field_serializer("fiskal_sign")
+    def serialize_fiskal_sign(self, fiskal_sign: Any, _info):
+        return fiskal_sign

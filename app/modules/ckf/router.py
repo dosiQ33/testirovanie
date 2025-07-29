@@ -74,7 +74,8 @@ from .dtos import (
     KkmsInfoListDto,
     SzptDto,
     ProductsViolationDto,
-    LastCheckViolationDto
+    LastCheckViolationDto,
+    ReceiptDetailDto,
 )
 from .repository import (
     EsfBuyerDailyRepo,
@@ -904,67 +905,91 @@ class ReceiptsRouter(APIRouter):
                 detail="Чек не найден по указанному фискальному признаку и ИИН/БИН",
             )
         return [ReceiptsDto.model_validate(item) for item in response]
-    
+
+    @sub_router.get("/latest-with-details")
+    @cache(expire=cache_ttl, key_builder=request_key_builder)
+    async def get_latest_receipts_with_details(
+        limit: int = Query(
+            100, ge=1, le=1000, description="Количество записей (от 1 до 1000)"
+        ),
+        session: AsyncSession = Depends(get_session_without_commit),
+    ) -> List[ReceiptDetailDto]:
+        """
+        Получить последние чеки с подробной информацией о ККМ и организации.
+
+        - **limit**: количество записей для возврата (по умолчанию 100, максимум 1000)
+        """
+        response = await ReceiptsRepo(session).get_latest_receipts_with_details(
+            limit=limit
+        )
+
+        return [ReceiptDetailDto.model_validate(item) for item in response]
+
+
 class SzptRouter(APIRouter):
     sub_router = APIRouter(prefix="/szpt-products", tags=["ckf: szpt"])
-    base_router = BaseCRUDRouter('szpt-products', DicSzpt, SzptRepo, SzptDto, tags=["ckf: szpt"])
+    base_router = BaseCRUDRouter(
+        "szpt-products", DicSzpt, SzptRepo, SzptDto, tags=["ckf: szpt"]
+    )
 
     def __init__(self):
         super().__init__()
 
         self.include_router(self.sub_router)
         self.include_router(self.base_router)
-    
-    @sub_router.get('/info/{kkm_id}/{szpt_id}')
+
+    @sub_router.get("/info/{kkm_id}/{szpt_id}")
     @cache(expire=cache_ttl, key_builder=request_key_builder)
     async def get_violations_count_by_kkm_id(
         kkm_id: int,
         szpt_id: int,
         session: AsyncSession = Depends(get_session_without_commit),
     ):
-        response = await SzptRepo(session).get_violations_count_by_kkm_id(kkm_id, szpt_id)
+        response = await SzptRepo(session).get_violations_count_by_kkm_id(
+            kkm_id, szpt_id
+        )
 
         return response
 
-    @sub_router.get('/last-receipt/{kkm_id}/{szpt_id}')
+    @sub_router.get("/last-receipt/{kkm_id}/{szpt_id}")
     @cache(expire=cache_ttl, key_builder=request_key_builder)
     async def get_last_receipt_with_violation(
         kkm_id: int,
         szpt_id: int,
         session: AsyncSession = Depends(get_session_without_commit),
     ):
-        response = await SzptRepo(session).get_last_receipt_with_violation(kkm_id, szpt_id)
+        response = await SzptRepo(session).get_last_receipt_with_violation(
+            kkm_id, szpt_id
+        )
 
         return response
 
-    @sub_router.get('/last-receipt/{fiskal_sign}', response_model=LastCheckViolationDto)
+    @sub_router.get("/last-receipt/{fiskal_sign}", response_model=LastCheckViolationDto)
     @cache(expire=cache_ttl, key_builder=request_key_builder)
     async def get_receipt_content(
         fiskal_sign: int,
         session: AsyncSession = Depends(get_session_without_commit),
     ):
-        payment_types = {
-            0: 'Оплата наличными',
-            1: 'Карта',
-            4: 'Мобильная оплата'
-        }
-        
+        payment_types = {0: "Оплата наличными", 1: "Карта", 4: "Мобильная оплата"}
+
         response = await SzptRepo(session).get_receipt_content(fiskal_sign)
 
-        payment_type = payment_types.get(response["products"][0]['payment_type'])
-        check_sum = sum(resp['full_item_price'] for resp in response['products'])
-        nds_sum = sum(resp['item_nds'] for resp in response['products'])
-        
+        payment_type = payment_types.get(response["products"][0]["payment_type"])
+        check_sum = sum(resp["full_item_price"] for resp in response["products"])
+        nds_sum = sum(resp["item_nds"] for resp in response["products"])
+
         overcharge = 0
         price_per_unit = 0
         current_max_price = 0
-        for resp in response['products']:
-            if resp['has_szpt_violation'] == True:
-                overcharge += resp['price_per_unit'] - resp['current_max_price']
+        for resp in response["products"]:
+            if resp["has_szpt_violation"] == True:
+                overcharge += resp["price_per_unit"] - resp["current_max_price"]
                 price_per_unit += resp["price_per_unit"]
                 current_max_price += resp["current_max_price"]
 
-        percent = round(((price_per_unit - current_max_price) / current_max_price) * 100, 2)
+        percent = round(
+            ((price_per_unit - current_max_price) / current_max_price) * 100, 2
+        )
 
         products = [
             ProductsViolationDto(
@@ -972,12 +997,20 @@ class SzptRouter(APIRouter):
                 full_item_price=prod["full_item_price"],
                 price_per_unit=prod.get("price_per_unit"),
                 has_szpt_violation=prod.get("has_szpt_violation", False),
-                unit=prod.get('unit')
+                unit=prod.get("unit"),
             )
             for prod in response.get("products", [])
         ]
 
-        return LastCheckViolationDto(products=products, payment_type=payment_type, check_sum=check_sum, nds_sum=nds_sum, percent=percent, overcharge=overcharge)
+        return LastCheckViolationDto(
+            products=products,
+            payment_type=payment_type,
+            check_sum=check_sum,
+            nds_sum=nds_sum,
+            percent=percent,
+            overcharge=overcharge,
+        )
+
 
 router.include_router(OrganizationsRouter())
 router.include_router(KkmsRouter())

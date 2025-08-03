@@ -474,7 +474,7 @@ class KkmsRouter(APIRouter):
 
         return summary
 
-    @sub_router.get("/statistics", response_model=KkmStatisticsResponseDto)
+    @sub_router.get("/statistics", response_model=KkmStatisticsResponseDto) 
     @cache(expire=cache_ttl, key_builder=request_key_builder)  # Кэширование на 24 часа
     async def get_kkm_statistics(
         statistics_dto: Annotated[KkmStatisticsRequestDto, Query()],
@@ -485,16 +485,7 @@ class KkmsRouter(APIRouter):
             filters=statistics_dto
         )
 
-        monthly_statistics = [
-            KkmMonthlyStatisticsItemDto(
-                month=int(month),
-                receipts_count=int(receipts_count),
-                turnover=float(turnover) if turnover else 0.0,
-            )
-            for month, receipts_count, turnover in monthly_data
-        ]
-
-        return KkmStatisticsResponseDto(monthly_data=monthly_statistics)
+        return monthly_data
 
     @sub_router.get(
         "/aggregated-statistics", response_model=KkmAggregatedStatisticsResponseDto
@@ -975,7 +966,7 @@ class SzptRouter(APIRouter):
         response = await SzptRepo(session).get_receipt_content(fiskal_sign)
 
         payment_type = payment_types.get(response["products"][0]["payment_type"])
-        check_sum = sum(resp["full_item_price"] for resp in response["products"])
+        check_sum = round(sum(resp["full_item_price"] for resp in response["products"]), 2)
         nds_sum = sum(resp["item_nds"] for resp in response["products"])
 
         overcharge = 0
@@ -995,6 +986,7 @@ class SzptRouter(APIRouter):
             ProductsViolationDto(
                 item_name=prod["item_name"],
                 full_item_price=prod["full_item_price"],
+                max_price=prod['price'],
                 price_per_unit=prod.get("price_per_unit"),
                 has_szpt_violation=prod.get("has_szpt_violation", False),
                 unit=prod.get("unit"),

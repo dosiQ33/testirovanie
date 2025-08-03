@@ -412,6 +412,7 @@ class KkmsInfoListDto(BasestDto):
 class ProductsViolationDto(BasestDto):
     item_name: str
     full_item_price: float
+    max_price: Optional[float]
     price_per_unit: Optional[float]
     has_szpt_violation: bool
     unit: Optional[str]

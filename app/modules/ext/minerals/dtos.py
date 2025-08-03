@@ -34,14 +34,7 @@ class IucMineralsDto(DtoWithShape):
     official_org_xin: Optional[str] = None
     official_org_name: Optional[str] = None
     loc_status: Optional[str] = None
-    created_at: Optional[date] = None
-
-class IucMineralsShapeDto(BasestDto):
-    id: int
-    shape: str
-
-class IucMineralsShapeListDto(BasestDto): 
-    minerals: List[IucMineralsShapeDto]   
+    created_at: Optional[date] = None  
 
 class IucMineralsResponseDto(BasestDto):
     loc_date: date
@@ -55,7 +48,7 @@ class IucMineralsResponseDto(BasestDto):
 class IucMineralsContractsResponseDto(BasestDto):
     id: int
     loc_number: str
-    official_org_name: str
+    name_ru: str
     loc_type: str
 
 class IucMineralsContractsResponseListDto(BasestDto):

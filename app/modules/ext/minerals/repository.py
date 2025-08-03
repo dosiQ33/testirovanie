@@ -40,18 +40,15 @@ class MineralsLocContractsRepo(BaseExtRepository):
 class IucMineralsRepo(BaseExtRepository):
     model = IucMinerals
 
-    async def get_filtered_minerals(self, filters: IucMineralsFilterRequestDto):
+    async def get_filters(self):
         try:
             query = (
                 select(
-                    IucMinerals.id,
-                    func.ST_AsText(IucMinerals.shape).label("shape")
+                    IucLocTypes.id,
+                    IucLocTypes.loc_type
                 )
                 .select_from(
-                    IucMinerals
-                )
-                .where(
-                    IucMinerals.loc_type_id.in_(filters.id)
+                    IucLocTypes
                 )
             )
 
@@ -59,11 +56,11 @@ class IucMineralsRepo(BaseExtRepository):
             rows = result.all()
 
             return {
-                'minerals':
+                'filters':
                     [dict(row._mapping) for row in rows]
             }
         except SQLAlchemyError as e:
-           logger.error(f"Ошибка при поиске всех записей по фильтрам {filters}: {e}")
+           logger.error(f"Ошибка при поиске всех фильтров: {e}")
            raise  
 
     async def get_minerals_info_by_id(self, id: int):
@@ -104,7 +101,7 @@ class IucMineralsRepo(BaseExtRepository):
                 select(
                     IucMinerals.id,
                     IucMinerals.loc_number,
-                    IucMinerals.official_org_name,
+                    Organizations.name_ru,
                     IucLocTypes.loc_type
                 )
                 .select_from(
@@ -113,6 +110,10 @@ class IucMineralsRepo(BaseExtRepository):
                 .join(
                     IucLocTypes,
                     IucMinerals.loc_type_id == IucLocTypes.id
+                )
+                .join(
+                    Organizations,
+                    IucMinerals.organization_id == Organizations.id
                 )
                 .where(
                     func.ST_Intersects(

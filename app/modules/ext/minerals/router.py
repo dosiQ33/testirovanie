@@ -15,7 +15,6 @@ from app.modules.ext.minerals.dtos import (
     IucMineralsFilterRequestDto,
     IucMineralsResponseDto,
     IucMineralsContractsResponseListDto,
-    IucMineralsShapeListDto
 )
 from app.modules.ext.minerals.models import (
     MineralsLocContracts,
@@ -74,13 +73,12 @@ class IucMineralsRouter(APIRouter):
         self.include_router(self.sub_router)
         self.include_router(self.base_router)
 
-    @sub_router.get("/filter", response_model=IucMineralsShapeListDto)
+    @sub_router.get("/filters")
     @cache(expire=cache_ttl, key_builder=request_key_builder)
     async def get_filtered_minerals(
-        filters: Annotated[IucMineralsFilterRequestDto, Query()],
         session: AsyncSession = Depends(get_session_with_commit),
     ):
-        response = await IucMineralsRepo(session).get_filtered_minerals(filters)
+        response = await IucMineralsRepo(session).get_filters()
 
         return response
     

@@ -474,7 +474,7 @@ class KkmsRouter(APIRouter):
 
         return summary
 
-    @sub_router.get("/statistics", response_model=KkmStatisticsResponseDto) 
+    @sub_router.get("/statistics", response_model=KkmStatisticsResponseDto)
     @cache(expire=cache_ttl, key_builder=request_key_builder)  # Кэширование на 24 часа
     async def get_kkm_statistics(
         statistics_dto: Annotated[KkmStatisticsRequestDto, Query()],
@@ -490,7 +490,7 @@ class KkmsRouter(APIRouter):
     @sub_router.get(
         "/aggregated-statistics", response_model=KkmAggregatedStatisticsResponseDto
     )
-    @cache(expire=cache_ttl, key_builder=request_key_builder)  # Кэширование на 24 часа
+    # @cache(expire=cache_ttl, key_builder=request_key_builder)  # Кэширование на 24 часа
     async def get_kkm_aggregated_statistics(
         statistics_dto: Annotated[KkmAggregatedStatisticsRequestDto, Query()],
         session: AsyncSession = Depends(get_session_without_commit),
@@ -520,7 +520,7 @@ class KkmsRouter(APIRouter):
         "/aggregated-statistics-by-building",
         response_model=KkmAggregatedByBuildingResponseDto,
     )
-    @cache(expire=cache_ttl, key_builder=request_key_builder)
+    # @cache(expire=cache_ttl, key_builder=request_key_builder)
     async def get_kkm_aggregated_statistics_by_buildings(
         statistics_dto: Annotated[BuildingsFilterDto, Query()],
         session: AsyncSession = Depends(get_session_without_commit),
@@ -966,7 +966,9 @@ class SzptRouter(APIRouter):
         response = await SzptRepo(session).get_receipt_content(fiskal_sign)
 
         payment_type = payment_types.get(response["products"][0]["payment_type"])
-        check_sum = round(sum(resp["full_item_price"] for resp in response["products"]), 2)
+        check_sum = round(
+            sum(resp["full_item_price"] for resp in response["products"]), 2
+        )
         nds_sum = sum(resp["item_nds"] for resp in response["products"])
 
         overcharge = 0
@@ -986,7 +988,7 @@ class SzptRouter(APIRouter):
             ProductsViolationDto(
                 item_name=prod["item_name"],
                 full_item_price=prod["full_item_price"],
-                max_price=prod['price'],
+                max_price=prod["price"],
                 price_per_unit=prod.get("price_per_unit"),
                 has_szpt_violation=prod.get("has_szpt_violation", False),
                 unit=prod.get("unit"),

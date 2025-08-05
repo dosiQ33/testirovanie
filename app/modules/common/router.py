@@ -47,7 +47,14 @@ def request_key_builder(
     response: Response = None,
     **kwargs,
 ):
-    return ":".join([namespace, request.method.lower(), request.url.path, repr(sorted(request.query_params.items()))])
+    return ":".join(
+        [
+            namespace,
+            request.method.lower(),
+            request.url.path,
+            repr(sorted(request.query_params.items())),
+        ]
+    )
 
 
 def to_dict(obj):
@@ -76,7 +83,10 @@ class ORJsonCoder(Coder):
     def encode(cls, value: Any):
         # Ensure value is serializable before caching to avoid SQLAlchemy async errors
         if isinstance(value, list):
-            value = [item.model_dump() if isinstance(item, BaseModel) else item.to_dict() for item in value]
+            value = [
+                item.model_dump() if isinstance(item, BaseModel) else item.to_dict()
+                for item in value
+            ]
         elif isinstance(value, BaseModel):
             value = value.model_dump()
 
@@ -95,7 +105,15 @@ class ORJsonCoder(Coder):
 class BaseCRUDRouter(APIRouter, Generic[T]):
     dto: Type[T]
 
-    def __init__(self, prefix: str, model: Type[BaseModel], repo: Type, dto: Type[T], filter_class: type = None, tags=None):
+    def __init__(
+        self,
+        prefix: str,
+        model: Type[BaseModel],
+        repo: Type,
+        dto: Type[T],
+        filter_class: type = None,
+        tags=None,
+    ):
         super().__init__(tags=tags)
 
         self.model = model
@@ -110,30 +128,42 @@ class BaseCRUDRouter(APIRouter, Generic[T]):
         sub_router.get("/{id}", response_model=dto)(self.get_one)
 
         if filter_class:
-            sub_router.get("", response_model=PaginatedResponse[dto])(self.get_many_with_common_filters)
+            sub_router.get("", response_model=PaginatedResponse[dto])(
+                self.get_many_with_common_filters
+            )
         else:
-            sub_router.get("", response_model=PaginatedResponse[T] | List[T])(self.get_many)
+            sub_router.get("", response_model=PaginatedResponse[T] | List[T])(
+                self.get_many
+            )
 
         self.include_router(sub_router)
 
     @cache(expire=cache_ttl, key_builder=request_key_builder)  # Кэширование на 24 часа
-    async def get_one(self, id: int, session: AsyncSession = Depends(get_session_with_commit)) -> T:
+    async def get_one(
+        self, id: int, session: AsyncSession = Depends(get_session_with_commit)
+    ) -> T:
         response = await self.repo(session).get_one_by_id(id)
         if not response:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Запись не найдена")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Запись не найдена"
+            )
 
         return self.dto.model_validate(response)
 
-    @cache(expire=cache_ttl, key_builder=request_key_builder)  # Кэширование на 24 часа
+    # @cache(expire=cache_ttl, key_builder=request_key_builder)  # Кэширование на 24 часа
     async def get_many(
         self,
         page_size: int | None = None,
         page: int | None = None,
         session: AsyncSession = Depends(get_session_with_commit),
     ) -> PaginatedResponse[T] | List[T]:
-        records, total = await self.repo(session).get_many(page_size=page_size, page=page)
+        records, total = await self.repo(session).get_many(
+            page_size=page_size, page=page
+        )
         current_page = page or 1
-        total_pages = (total // page_size + int(total % page_size > 0)) if page_size else 1
+        total_pages = (
+            (total // page_size + int(total % page_size > 0)) if page_size else 1
+        )
 
         if page_size is None:
             # If no page size is provided, return all records without pagination
@@ -165,12 +195,18 @@ class BaseCRUDRouter(APIRouter, Generic[T]):
         if self.filter_class and filters:
             filters = FilterDepends(self.filter_class)
 
-        records, total = await self.repo(session).get_many(filters=filters, page_size=page_size, page=page)
+        records, total = await self.repo(session).get_many(
+            filters=filters, page_size=page_size, page=page
+        )
         current_page = page or 1
-        total_pages = (total // page_size + int(total % page_size > 0)) if page_size else 1
+        total_pages = (
+            (total // page_size + int(total % page_size > 0)) if page_size else 1
+        )
 
         return PaginatedResponse[T](
-            data=[self.dto.model_validate(item, from_attributes=True) for item in records],
+            data=[
+                self.dto.model_validate(item, from_attributes=True) for item in records
+            ],
             page=current_page,
             total=total,
             page_count=total_pages,
@@ -198,7 +234,9 @@ class BaseCRUDRouter(APIRouter, Generic[T]):
 class BaseExtRouter(APIRouter, Generic[T]):
     dto: Type[T]
 
-    def __init__(self, prefix: str, model: Type[BaseModel], repo: Type, dto: Type[T], tags=None):
+    def __init__(
+        self, prefix: str, model: Type[BaseModel], repo: Type, dto: Type[T], tags=None
+    ):
         super().__init__(tags=tags)
 
         self.model = model
@@ -207,24 +245,40 @@ class BaseExtRouter(APIRouter, Generic[T]):
 
         sub_router = APIRouter(prefix=f"/{prefix}" if prefix else "")
 
-        sub_router.get("/parent/{parent_id}", response_model=List[dto])(self.get_by_parent_id)
+        sub_router.get("/parent/{parent_id}", response_model=List[dto])(
+            self.get_by_parent_id
+        )
         sub_router.get("/{id}", response_model=dto)(self.get_one_by_id)
         sub_router.get("", response_model=List[dto])(self.get_many)
 
         self.include_router(sub_router)
 
-    @cache(expire=cache_ttl, key_builder=request_key_builder, coder=ORJsonCoder)  # Кэширование на 24 часа
-    async def get_one_by_id(self, id: int, session: AsyncSession = Depends(get_session_with_commit)) -> T:
+    @cache(
+        expire=cache_ttl, key_builder=request_key_builder, coder=ORJsonCoder
+    )  # Кэширование на 24 часа
+    async def get_one_by_id(
+        self, id: int, session: AsyncSession = Depends(get_session_with_commit)
+    ) -> T:
         response = await self.repo(session).get_one_by_id(id)
         if not response:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Запись не найдена")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Запись не найдена"
+            )
 
         return self.dto.model_validate(response)
 
-    @cache(expire=cache_ttl, key_builder=request_key_builder, coder=ORJsonCoder)  # Кэширование на 24 часа
-    async def get_many(self, session: AsyncSession = Depends(get_session_with_commit)) -> List[T]:
+    @cache(
+        expire=cache_ttl, key_builder=request_key_builder, coder=ORJsonCoder
+    )  # Кэширование на 24 часа
+    async def get_many(
+        self, session: AsyncSession = Depends(get_session_with_commit)
+    ) -> List[T]:
         return await self.repo(session).get_many()
 
-    @cache(expire=cache_ttl, key_builder=request_key_builder, coder=ORJsonCoder)  # Кэширование на 24 часа
-    async def get_by_parent_id(self, parent_id: int, session: AsyncSession = Depends(get_session_with_commit)) -> List[T]:
+    @cache(
+        expire=cache_ttl, key_builder=request_key_builder, coder=ORJsonCoder
+    )  # Кэширование на 24 часа
+    async def get_by_parent_id(
+        self, parent_id: int, session: AsyncSession = Depends(get_session_with_commit)
+    ) -> List[T]:
         return await self.repo(session).get_by_parent_id(parent_id)

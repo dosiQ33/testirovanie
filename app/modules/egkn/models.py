@@ -25,7 +25,7 @@ class Lands(BasestModel):
     purpose_ru: Mapped[str] = mapped_column(name='purpose_ru', nullable=True)
     purpose_kk: Mapped[str] = mapped_column(name='purpose_kk', nullable=True)
     shape: Mapped[WKBElement] = mapped_column(
-        Geometry(geometry_type="POINT", srid=4326, spatial_index=True),
+        Geometry(geometry_type="MULTIPOLYGON", srid=4326, spatial_index=True),
         comment="Геометрия",
         nullable=True,
     )
@@ -35,7 +35,7 @@ class Lands(BasestModel):
     divisibility_id: Mapped[int] = mapped_column(ForeignKey('ref_divisibility.id'), nullable=False)
     functional_id: Mapped[int] = mapped_column(ForeignKey('ref_functional_purpose.id'), nullable=False)
     land_category_id: Mapped[int] = mapped_column(ForeignKey('ref_land_category.id'), nullable=False)
-    part_type_id: Mapped[int] = mapped_column(ForeignKey('part_type_ref.id'), nullable=False)
+    part_type_id: Mapped[int] = mapped_column(ForeignKey('part_type_ref.id'), nullable=True)
     purpose_use_id: Mapped[int] = mapped_column(ForeignKey('ref_purpose.id'), nullable=False)
     start_date: Mapped[date] = mapped_column(name='start_date', nullable=True)
     uniq_identif_economic_charachter: Mapped[str] = mapped_column(name='uniq_identif_economic_charachter', nullable=True)

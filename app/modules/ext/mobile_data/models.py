@@ -22,10 +22,10 @@ class KaztelecomHour(BasestModel):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     hourly_cut: Mapped[Optional[str]] = mapped_column(comment="Часовой интервал")
 
-    # Relationships
-    mobile_data: Mapped[List["KaztelecomMobileData"]] = relationship(
-        "KaztelecomMobileData", back_populates="hour", lazy="selectin"
-    )
+    # # Relationships
+    # mobile_data: Mapped[List["KaztelecomMobileData"]] = relationship(
+    #     "KaztelecomMobileData", back_populates="hour", lazy="selectin"
+    # )
 
 
 class KaztelecomStationsGeo(BasestModel):
@@ -134,7 +134,7 @@ class KaztelecomMobileData(BasestModel):
         Integer, comment="Количество исходящего"
     )
 
-    # Relationships
-    hour: Mapped[Optional["KaztelecomHour"]] = relationship(
-        "KaztelecomHour", back_populates="mobile_data", lazy="selectin"
-    )
+    # # Relationships
+    # hour: Mapped[Optional["KaztelecomHour"]] = relationship(
+    #     "KaztelecomHour", back_populates="mobile_data", lazy="selectin"
+    # )

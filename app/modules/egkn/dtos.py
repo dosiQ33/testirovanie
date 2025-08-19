@@ -24,7 +24,7 @@ class LandsDto(DtoWithShape):
     divisibility_id: int
     functional_id: int
     land_category_id: int
-    part_type_id: int
+    part_type_id: Optional[int]
     purpose_use_id: int
 
     start_date: Optional[datetime]
@@ -50,22 +50,37 @@ class LandsDto(DtoWithShape):
     part_number: Optional[str]
 
 class LandsLegalInfoDto(BasestDto):
-    iin: Optional[str]
-    bin: Optional[str]
-    first_name: str
-    last_name: str
-    document_name_ru: str
-    start_date: datetime
+    iin: Optional[str] = None
+    bin: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    document_name_ru: Optional[str] = None
+    start_date: Optional[datetime] = None
 
 class InfrastructureInfoDto(BasestDto):
-    electricity: bool
-    water: bool
-    gas: bool
-    sewage: bool
-    internet: bool
-    road_type: str
-    distance_to_city_km: Optional[int]
+    electricity: Optional[bool] = None
+    water: Optional[bool] = None
+    gas: Optional[bool] = None
+    sewage: Optional[bool] = None
+    internet: Optional[bool] = None
+    road_type: Optional[str] = None
+    distance_to_city_km: Optional[int] = None
 
 class EcologyInfoDto(BasestDto):
     land_type: str
     restriction: str
+
+class EcologyInfoListDto(BasestDto):
+    ecology: List[EcologyInfoDto]
+
+class RestrictionsInfoDto(BasestDto):
+    charge_type: Optional[str] = None
+    charge_start_date: Optional[datetime] = None
+    charge_duration: Optional[str] = None
+    arrests: Optional[str] = None
+    arrest_start_date: Optional[datetime] = None
+    arrest_duration: Optional[str] = None
+    other_restrictions: Optional[str] = None
+    other_start_date: Optional[date] = None
+    other_duration: Optional[str] = None
+    subject_id: Optional[int] = None

@@ -298,12 +298,11 @@ class OrganizationsRepo(BaseRepository):
                 )
                 .outerjoin(EsfSeller, Organizations.id == EsfSeller.organization_id)
                 .outerjoin(EsfBuyer, Organizations.id == EsfBuyer.organization_id)
-                .outerjoin(Kkms, Organizations.id == Kkms.organization_id)
+                .outerjoin(Kkms, (Organizations.id == Kkms.organization_id) and (Kkms.date_stop.is_(None)))
                 .outerjoin(ReceiptsAnnual, Kkms.id == ReceiptsAnnual.kkms_id)
                 .where(
                     ST_Within(Organizations.shape, territory_geom),
                     Organizations.date_stop.is_(None),
-                    Kkms.date_stop.is_(None),
                 )
                 .group_by(
                     Organizations.iin_bin,
@@ -399,7 +398,7 @@ class KkmsRepo(BaseRepository):
                 .join(Organizations, Kkms.organization_id == Organizations.id)
                 .where(
                     and_(
-                        ST_Within(Organizations.shape, territory_geom),
+                        ST_Within(Kkms.shape, territory_geom),
                         Kkms.date_stop.is_(None),
                     )
                 )
@@ -430,7 +429,7 @@ class KkmsRepo(BaseRepository):
 
             if filters.floor == FloorEnum.kkm:
                 columns.append(
-                    func.count(ReceiptsMonthly.check_count).label("check_count")
+                    func.sum(ReceiptsMonthly.check_count).label("check_count")
                 )
 
             query = (
@@ -499,6 +498,47 @@ class KkmsRepo(BaseRepository):
         except SQLAlchemyError as e:
             logger.error(f"Ошибка при поиске всех записей по фильтрам {filters}: {e}")
             raise
+
+    async def get_active_kkms_info(self, id: int):
+        query = (
+            select(
+                Kkms.id,
+                Kkms.organization_id,
+                Kkms.reg_number,
+                Kkms.serial_number,
+                Kkms.model_name,
+                Kkms.made_year,
+                Kkms.date_start,
+                Kkms.date_stop,
+                Kkms.address,
+                Kkms.shape
+            )
+            .where(
+                Kkms.date_stop.is_(None),
+                Kkms.organization_id == id
+            )
+        )
+
+        result = await self._session.execute(query)
+        response = result.all()
+
+        return response
+    
+    async def get_active_kkms_count(self, id: int):
+        query = (
+            select(
+                func.count()
+            )
+            .select_from(
+                Kkms
+            )
+            .where(Kkms.date_stop.is_(None), Kkms.organization_id == id)
+        )
+
+        result = await self._session.execute(query)
+        response = result.mappings().one()
+
+        return response
 
 
 class FnoTypesRepo(BaseRepository):
@@ -1145,7 +1185,6 @@ class ReceiptsRepo(BaseWithKkmRepository):
                     ),
                 )
                 .select_from(ReceiptsDaily)
-                .filter(ReceiptsDaily.date_check == current_date)
             )
 
             # Подзапрос для годовой статистики

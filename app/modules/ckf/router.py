@@ -235,7 +235,7 @@ class OrganizationsRouter(APIRouter):
         id: int,
         session: AsyncSession = Depends(get_session_with_commit),
     ):
-        kkms = await OrganizationsRepo(session).get_kkms(id)
+        kkms = await KkmsRepo(session).get_active_kkms_info(id)
 
         date = datetime.now().date()
         year = date.year
@@ -551,7 +551,15 @@ class KkmsRouter(APIRouter):
     ):
         response = await KkmsRepo(session).get_kkm_info_by_building(filters)
         return response
-
+    
+    @sub_router.get("/active-kkms/{id}")
+    @cache(expire=cache_ttl, key_builder=request_key_builder)
+    async def get_kkm_info_by_building(
+        id: int,
+        session: AsyncSession = Depends(get_session_without_commit),
+    ):
+        response = await KkmsRepo(session).get_active_kkms_count(id)
+        return response
 
 class FnoStatisticsRouter(APIRouter):
     sub_router = APIRouter(prefix="/fno-statistics", tags=["ckf: fno-statistics"])
@@ -898,7 +906,7 @@ class ReceiptsRouter(APIRouter):
         return [ReceiptsDto.model_validate(item) for item in response]
 
     @sub_router.get("/latest-with-details")
-    @cache(expire=cache_ttl, key_builder=request_key_builder)
+    #@cache(expire=cache_ttl, key_builder=request_key_builder)
     async def get_latest_receipts_with_details(
         limit: int = Query(
             100, ge=1, le=1000, description="Количество записей (от 1 до 1000)"

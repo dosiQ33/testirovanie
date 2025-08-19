@@ -3,7 +3,7 @@ from sqlalchemy import select, func, and_, or_
 from sqlalchemy.exc import SQLAlchemyError
 from loguru import logger
 
-from app.modules.common.repository import BaseExtRepository
+from app.modules.common.repository import BaseRepository
 from app.modules.common.utils import territory_to_geo_element
 from .dtos import (
     KaztelecomMobileDataFilterDto,
@@ -13,11 +13,11 @@ from .dtos import (
 from .models import KaztelecomHour, KaztelecomMobileData, KaztelecomStationsGeo
 
 
-class KaztelecomHourRepo(BaseExtRepository):
+class KaztelecomHourRepo(BaseRepository):
     model = KaztelecomHour
 
 
-class KaztelecomStationsGeoRepo(BaseExtRepository):
+class KaztelecomStationsGeoRepo(BaseRepository):
     model = KaztelecomStationsGeo
 
     async def filter_stations(self, filters: KaztelecomStationsGeoFilterDto):
@@ -94,7 +94,7 @@ class KaztelecomStationsGeoRepo(BaseExtRepository):
             raise
 
 
-class KaztelecomMobileDataRepo(BaseExtRepository):
+class KaztelecomMobileDataRepo(BaseRepository):
     model = KaztelecomMobileData
 
     async def filter_mobile_data(self, filters: KaztelecomMobileDataFilterDto):

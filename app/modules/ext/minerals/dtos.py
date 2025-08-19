@@ -37,6 +37,8 @@ class IucMineralsDto(DtoWithShape):
     created_at: Optional[date] = None  
 
 class IucMineralsResponseDto(BasestDto):
+    loc_number: int
+    loc_type: str
     loc_date: date
     official_org_xin: int
     official_org_name: str

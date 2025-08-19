@@ -17,7 +17,8 @@ from .dtos import (
     LandsDto,
     LandsLegalInfoDto,
     InfrastructureInfoDto,
-    EcologyInfoDto
+    RestrictionsInfoDto,
+    EcologyInfoListDto
 )
 
 from .models import (
@@ -44,7 +45,18 @@ class LandsRouter(APIRouter):
         super().__init__()
 
         self.include_router(self.sub_router)
-        self.include_router(self.base_router)
+        self.include_router(self.base_router)\
+    
+
+    @sub_router.get('/filter')
+    @cache(expire=cache_ttl, key_builder=request_key_builder)
+    async def filter(
+        session: AsyncSession = Depends(get_session_with_commit),
+    ):
+        
+        response = await LandsRepository(session).filter()
+
+        return response
 
     @sub_router.get('/legal-info/{land_id}', response_model=LandsLegalInfoDto)
     @cache(expire=cache_ttl, key_builder=request_key_builder)
@@ -54,7 +66,7 @@ class LandsRouter(APIRouter):
     ):
         response = await LandsRepository(session).get_legal_information(land_id)
 
-        return response
+        return response if response else {}
 
 
     @sub_router.get('/infrastructure/{land_id}', response_model=InfrastructureInfoDto)
@@ -66,9 +78,9 @@ class LandsRouter(APIRouter):
         
         response = await LandsRepository(session).get_land_infrastructure(land_id)
 
-        return response
+        return response if response else {}
     
-    @sub_router.get('/ecology/{land_id}', response_model=EcologyInfoDto)
+    @sub_router.get('/ecology/{land_id}', response_model=EcologyInfoListDto)
     @cache(expire=cache_ttl, key_builder=request_key_builder)
     async def get_ecological_info(
         land_id: int,
@@ -78,7 +90,7 @@ class LandsRouter(APIRouter):
 
         return response
     
-    @sub_router.get('/restrictions/{land_id}')
+    @sub_router.get('/restrictions/{land_id}', response_model=RestrictionsInfoDto)
     @cache(expire=cache_ttl, key_builder=request_key_builder)
     async def get_ecological_info(
         land_id: int,
@@ -86,6 +98,6 @@ class LandsRouter(APIRouter):
     ):
         response = await LandsRepository(session).get_land_restrictions(land_id)
 
-        return response    
+        return response if response else {}
 
 router.include_router(LandsRouter())

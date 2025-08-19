@@ -67,6 +67,8 @@ class IucMineralsRepo(BaseExtRepository):
         try:
             query = (
                 select(
+                    IucMinerals.loc_number,
+                    IucLocTypes.loc_type,
                     IucMinerals.loc_date,
                     IucMinerals.official_org_xin,
                     IucMinerals.official_org_name,
@@ -76,6 +78,10 @@ class IucMineralsRepo(BaseExtRepository):
                     Organizations.address
                 )
                 .select_from(IucMinerals)
+                .join(
+                    IucLocTypes,
+                    IucMinerals.loc_type_id == IucLocTypes.id
+                )
                 .join(
                     Organizations,
                     IucMinerals.organization_id == Organizations.id

@@ -25,8 +25,32 @@ from .models import (
     RefLandCategory
 )
 
+from .dtos import (
+    LandsLegalInfoDto
+)
+
 class LandsRepository(BaseRepository):
     model = Lands
+
+    async def filter(self):
+        try:
+            query = (
+                select(
+                    RefLandCategory.id,
+                    RefLandCategory.name_ru
+                )
+            )
+
+            result = await self._session.execute(query)
+            response = result.all()
+
+            return {
+                'filters':
+                    [dict(row._mapping) for row in response]
+            }
+        except SQLAlchemyError as e:
+            logger.error(f"Ошибка при получении фильтров по ЗУ: {e}")
+            raise  
 
     async def get_legal_information(self, land_id: int):
         try:
@@ -60,9 +84,9 @@ class LandsRepository(BaseRepository):
                 )
             )
             result = await self._session.execute(query)
-            response = result.mappings().one()
+            response = result.mappings().first()
 
-            return response
+            return response 
         except SQLAlchemyError as e:
             logger.error(f"Ошибка при получении данных по ЗУ {land_id}: {e}")
             raise
@@ -85,7 +109,7 @@ class LandsRepository(BaseRepository):
             )
 
             result = await self._session.execute(query)
-            response = result.mappings().one()
+            response = result.mappings().first()
 
             return response
 
@@ -117,13 +141,16 @@ class LandsRepository(BaseRepository):
             )
 
             result = await self._session.execute(query)
-            row = result.one()
+            rows = result.mappings().all()
 
-            if row:
-                land_type, restriction = row
-                return {"land_type": land_type, "restriction": restriction}
-            else:
-                return None
+            print(rows)
+
+            return {'ecology': 
+                    [{
+                    'land_type': row.land_type, 
+                    'restriction': row.restriction}
+                    for row in rows
+                ]}
         except SQLAlchemyError as e:
             logger.error(f"Ошибка при получении данных по ЗУ {land_id}: {e}")
             raise
@@ -132,28 +159,35 @@ class LandsRepository(BaseRepository):
         try:
             query = (
                 select(
-                    RefChargeTypes.name_ru,
-                    LandCharges.start_date,
-                    LandCharges.validity_ru,
-                    LandChargeDocs.reason_type,
-                    LandCharges.start_date,
-                    LandCharges.validity_ru,
-                    LandRestriction.name_ru,
-                    LandRestriction.start_date,
-                    LandRestriction.validity_ru,
-                    LandRestriction.imposed_subject_id
+                    RefChargeTypes.name_ru.label('charge_type'),
+                    LandCharges.start_date.label('charge_start_date'),
+                    LandCharges.validity_ru.label('charge_duration'),
+                    LandChargeDocs.reason_type.label('arrests'),
+                    LandCharges.start_date.label('arrest_start_date'),
+                    LandCharges.validity_ru.label('arrest_duration'),
+                    LandRestriction.name_ru.label('other_restrictions'),
+                    LandRestriction.start_date.label('other_start_date'),
+                    LandRestriction.validity_ru.label('other_duration'),
+                    LandRestriction.imposed_subject_id.label('subject_id')
+                )
+                .select_from(
+                    Lands
                 )
                 .join(
-                    Lands,
-                    LandCharges.land_id == Lands.id
+                    LandCharges,
+                    Lands.id == LandCharges.land_id
+                )
+                .join(
+                    RefChargeTypes,
+                    LandCharges.charge_type_id == RefChargeTypes.id
                 )
                 .join(
                     LandRestriction,
                     Lands.id == LandRestriction.land_id
                 )
                 .join(
-                    RefRestriciton,
-                    LandRestriction.type_id == RefRestriciton.id
+                    LandChargeDocs,
+                    LandCharges.id == LandChargeDocs.land_charge_id
                 )
                 .where(
                     Lands.id == land_id
@@ -161,7 +195,7 @@ class LandsRepository(BaseRepository):
             )
 
             result = await self._session.execute(query)
-            response = result.mappings().one()
+            response = result.mappings().first()
 
             return response
         except SQLAlchemyError as e:

@@ -3,8 +3,8 @@ from fastapi import APIRouter, Query, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi_cache.decorator import cache
 
-from app.database.deps import get_session_with_commit
-from app.modules.common.router import BaseExtRouter, request_key_builder, cache_ttl
+from app.database.deps import get_session_without_commit
+from app.modules.common.router import request_key_builder, cache_ttl, BaseCRUDRouter
 from app.modules.common.dto import Bbox
 from .dtos import (
     KaztelecomHourDto,
@@ -29,7 +29,7 @@ router = APIRouter(prefix="/mobile-data")
 
 class KaztelecomHourRouter(APIRouter):
     sub_router = APIRouter(prefix="/hours", tags=["ext: kaztelecom-hours"])
-    base_router = BaseExtRouter(
+    base_router = BaseCRUDRouter(
         "hours",
         KaztelecomHour,
         KaztelecomHourRepo,
@@ -45,7 +45,7 @@ class KaztelecomHourRouter(APIRouter):
 
 class KaztelecomStationsGeoRouter(APIRouter):
     sub_router = APIRouter(prefix="/stations", tags=["ext: kaztelecom-stations"])
-    base_router = BaseExtRouter(
+    base_router = BaseCRUDRouter(
         "stations",
         KaztelecomStationsGeo,
         KaztelecomStationsGeoRepo,
@@ -62,7 +62,7 @@ class KaztelecomStationsGeoRouter(APIRouter):
     @cache(expire=cache_ttl, key_builder=request_key_builder)
     async def filter_stations(
         filters: Annotated[KaztelecomStationsGeoFilterDto, Query()],
-        session: AsyncSession = Depends(get_session_with_commit),
+        session: AsyncSession = Depends(get_session_without_commit),
     ) -> List[KaztelecomStationsGeoDto]:
         """
         Фильтрация станций по различным параметрам:
@@ -83,7 +83,7 @@ class KaztelecomStationsGeoRouter(APIRouter):
     @cache(expire=cache_ttl, key_builder=request_key_builder)
     async def get_stations_by_bbox(
         bbox: Annotated[Bbox, Query()],
-        session: AsyncSession = Depends(get_session_with_commit),
+        session: AsyncSession = Depends(get_session_without_commit),
     ):
         """
         Получить станции в указанном bounding box
@@ -100,7 +100,7 @@ class KaztelecomStationsGeoRouter(APIRouter):
     @cache(expire=cache_ttl, key_builder=request_key_builder)
     async def get_station_with_geom(
         id: int,
-        session: AsyncSession = Depends(get_session_with_commit),
+        session: AsyncSession = Depends(get_session_without_commit),
     ) -> KaztelecomStationsGeoWithGeomDto:
         """Получить станцию с геометрией по ID"""
         response = await KaztelecomStationsGeoRepo(session).get_one_by_id(id)
@@ -109,7 +109,7 @@ class KaztelecomStationsGeoRouter(APIRouter):
 
 class KaztelecomMobileDataRouter(APIRouter):
     sub_router = APIRouter(prefix="/data", tags=["ext: kaztelecom-mobile-data"])
-    base_router = BaseExtRouter(
+    base_router = BaseCRUDRouter(
         "data",
         KaztelecomMobileData,
         KaztelecomMobileDataRepo,
@@ -126,7 +126,7 @@ class KaztelecomMobileDataRouter(APIRouter):
     @cache(expire=cache_ttl, key_builder=request_key_builder)
     async def filter_mobile_data(
         filters: Annotated[KaztelecomMobileDataFilterDto, Query()],
-        session: AsyncSession = Depends(get_session_with_commit),
+        session: AsyncSession = Depends(get_session_without_commit),
     ) -> List[KaztelecomMobileDataDto]:
         """
         Фильтрация мобильных данных по параметрам:
@@ -149,7 +149,7 @@ class KaztelecomMobileDataRouter(APIRouter):
     @cache(expire=cache_ttl, key_builder=request_key_builder)
     async def get_aggregation_stats(
         filters: Annotated[KaztelecomMobileDataFilterDto, Query()] = None,
-        session: AsyncSession = Depends(get_session_with_commit),
+        session: AsyncSession = Depends(get_session_without_commit),
     ) -> MobileDataAggregationDto:
         """
         Получить агрегированную статистику по мобильным данным:
@@ -167,7 +167,7 @@ class KaztelecomMobileDataRouter(APIRouter):
     @sub_router.get("/by-hour", summary="Группировка по часам")
     @cache(expire=cache_ttl, key_builder=request_key_builder)
     async def get_data_by_hour(
-        session: AsyncSession = Depends(get_session_with_commit),
+        session: AsyncSession = Depends(get_session_without_commit),
     ) -> List[MobileDataByHourDto]:
         """
         Получить данные сгруппированные по часам:
@@ -182,7 +182,7 @@ class KaztelecomMobileDataRouter(APIRouter):
     @cache(expire=cache_ttl, key_builder=request_key_builder)
     async def get_data_by_date(
         limit: int = Query(30, ge=1, le=365, description="Количество дней (1-365)"),
-        session: AsyncSession = Depends(get_session_with_commit),
+        session: AsyncSession = Depends(get_session_without_commit),
     ) -> List[MobileDataByDateDto]:
         """
         Получить данные сгруппированные по датам:

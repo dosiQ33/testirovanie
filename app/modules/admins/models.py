@@ -1,6 +1,6 @@
 from __future__ import annotations
 from typing import Optional
-from sqlalchemy import ForeignKey, BigInteger, Integer, Text
+from sqlalchemy import ForeignKey, BigInteger, Integer, Text, func, Date
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import date, datetime
 
@@ -11,7 +11,7 @@ class DicUl(BasestModel):
     __tablename__ = "dic_ul"
     __table_args__ = dict(schema="admin", comment="Справочник юридических лиц")
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     parent_id: Mapped[Optional[int]] = mapped_column(
         BigInteger, comment="Родительский ID"
     )
@@ -22,14 +22,19 @@ class DicUl(BasestModel):
     kato: Mapped[Optional[str]] = mapped_column(comment="КАТО")
     oblast_id: Mapped[Optional[int]] = mapped_column(BigInteger, comment="ID области")
     raion_id: Mapped[Optional[int]] = mapped_column(BigInteger, comment="ID района")
-    create_date: Mapped[Optional[date]] = mapped_column(comment="Дата создания")
+    create_date: Mapped[Optional[date]] = mapped_column(
+        Date,
+        comment="Дата создания",
+        server_default=func.current_date(),
+        default=func.current_date(),
+    )
 
 
 class DicRoles(BasestModel):
     __tablename__ = "dic_roles"
     __table_args__ = dict(schema="admin", comment="Справочник ролей")
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     role_name: Mapped[Optional[str]] = mapped_column(comment="Название роли")
     actions: Mapped[Optional[int]] = mapped_column(Integer, comment="Действия")
     description: Mapped[Optional[str]] = mapped_column(Text, comment="Описание")
@@ -39,7 +44,7 @@ class DicFl(BasestModel):
     __tablename__ = "dic_fl"
     __table_args__ = dict(schema="admin", comment="Справочник физических лиц")
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     iin: Mapped[Optional[str]] = mapped_column(comment="ИИН")
     surname: Mapped[Optional[str]] = mapped_column(comment="Фамилия")
     name: Mapped[Optional[str]] = mapped_column(comment="Имя")
@@ -47,14 +52,19 @@ class DicFl(BasestModel):
     date_of_birth: Mapped[Optional[date]] = mapped_column(comment="Дата рождения")
     email: Mapped[Optional[str]] = mapped_column(Text, comment="Email")
     phone: Mapped[Optional[str]] = mapped_column(comment="Телефон")
-    create_date: Mapped[Optional[date]] = mapped_column(comment="Дата создания")
+    create_date: Mapped[Optional[date]] = mapped_column(
+        Date,
+        comment="Дата создания",
+        server_default=func.current_date(),
+        default=func.current_date(),
+    )
 
 
 class Employees(BasestModel):
     __tablename__ = "employees"
     __table_args__ = dict(schema="admin", comment="Сотрудники")
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     fl_id: Mapped[Optional[int]] = mapped_column(Integer, comment="Физическое лицо")
     ul_id: Mapped[Optional[int]] = mapped_column(Integer, comment="Юридическое лицо")
     role: Mapped[Optional[int]] = mapped_column(Integer, comment="Роль")
@@ -65,7 +75,9 @@ class Employees(BasestModel):
         comment="Заблокирован", default=False
     )
     empl_create_date: Mapped[Optional[datetime]] = mapped_column(
-        comment="Дата создания сотрудника"
+        comment="Дата создания сотрудника",
+        server_default=func.now(),
+        default=func.now(),
     )
     employee_position: Mapped[Optional[str]] = mapped_column(
         comment="Должность сотрудника"

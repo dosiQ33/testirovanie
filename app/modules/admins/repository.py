@@ -1,11 +1,19 @@
 from typing import List, Optional
-from sqlalchemy import select, func
+from sqlalchemy import select, func, update, delete
 from sqlalchemy.exc import SQLAlchemyError
 from loguru import logger
 
 from app.modules.common.repository import BaseRepository
 from .models import Employees, DicUl, DicRoles, DicFl
-from .dtos import EmployeesFilterDto
+from .dtos import (
+    EmployeesFilterDto,
+    DicFlCreateDto,
+    DicFlUpdateDto,
+    DicUlCreateDto,
+    DicUlUpdateDto,
+    EmployeesCreateDto,
+    EmployeesUpdateDto,
+)
 
 
 class DicUlRepo(BaseRepository):
@@ -53,6 +61,65 @@ class DicUlRepo(BaseRepository):
             return record
         except SQLAlchemyError as e:
             logger.error(f"Ошибка при поиске организации по БИН {bin_code}: {e}")
+            raise
+
+    async def create(self, data: DicUlCreateDto) -> DicUl:
+        """Создать новую организацию"""
+        try:
+            new_record = self.model(**data.model_dump(exclude_unset=True))
+            self._session.add(new_record)
+            await self._session.flush()
+            await self._session.refresh(new_record)
+            logger.info(f"Создана новая организация с ID {new_record.id}")
+            return new_record
+        except SQLAlchemyError as e:
+            logger.error(f"Ошибка при создании организации: {e}")
+            raise
+
+    async def update_by_id(self, id: int, data: DicUlUpdateDto) -> Optional[DicUl]:
+        """Обновить организацию по ID"""
+        try:
+            # Проверяем существование записи
+            existing_record = await self.get_one_by_id(id)
+            if not existing_record:
+                return None
+
+            # Обновляем запись
+            update_data = data.model_dump(exclude_unset=True)
+            if update_data:
+                stmt = (
+                    update(self.model).where(self.model.id == id).values(**update_data)
+                )
+                await self._session.execute(stmt)
+                await self._session.flush()
+
+                # Получаем обновленную запись
+                updated_record = await self.get_one_by_id(id)
+                logger.info(f"Обновлена организация с ID {id}")
+                return updated_record
+
+            return existing_record
+        except SQLAlchemyError as e:
+            logger.error(f"Ошибка при обновлении организации с ID {id}: {e}")
+            raise
+
+    async def delete_by_id(self, id: int) -> bool:
+        """Удалить организацию по ID"""
+        try:
+            # Проверяем существование записи
+            existing_record = await self.get_one_by_id(id)
+            if not existing_record:
+                return False
+
+            # Удаляем запись
+            stmt = delete(self.model).where(self.model.id == id)
+            result = await self._session.execute(stmt)
+            await self._session.flush()
+
+            logger.info(f"Удалена организация с ID {id}")
+            return result.rowcount > 0
+        except SQLAlchemyError as e:
+            logger.error(f"Ошибка при удалении организации с ID {id}: {e}")
             raise
 
 
@@ -110,6 +177,65 @@ class DicFlRepo(BaseRepository):
             logger.error(f"Ошибка при поиске физических лиц: {e}")
             raise
 
+    async def create(self, data: DicFlCreateDto) -> DicFl:
+        """Создать новое физическое лицо"""
+        try:
+            new_record = self.model(**data.model_dump(exclude_unset=True))
+            self._session.add(new_record)
+            await self._session.flush()
+            await self._session.refresh(new_record)
+            logger.info(f"Создано новое физическое лицо с ID {new_record.id}")
+            return new_record
+        except SQLAlchemyError as e:
+            logger.error(f"Ошибка при создании физического лица: {e}")
+            raise
+
+    async def update_by_id(self, id: int, data: DicFlUpdateDto) -> Optional[DicFl]:
+        """Обновить физическое лицо по ID"""
+        try:
+            # Проверяем существование записи
+            existing_record = await self.get_one_by_id(id)
+            if not existing_record:
+                return None
+
+            # Обновляем запись
+            update_data = data.model_dump(exclude_unset=True)
+            if update_data:
+                stmt = (
+                    update(self.model).where(self.model.id == id).values(**update_data)
+                )
+                await self._session.execute(stmt)
+                await self._session.flush()
+
+                # Получаем обновленную запись
+                updated_record = await self.get_one_by_id(id)
+                logger.info(f"Обновлено физическое лицо с ID {id}")
+                return updated_record
+
+            return existing_record
+        except SQLAlchemyError as e:
+            logger.error(f"Ошибка при обновлении физического лица с ID {id}: {e}")
+            raise
+
+    async def delete_by_id(self, id: int) -> bool:
+        """Удалить физическое лицо по ID"""
+        try:
+            # Проверяем существование записи
+            existing_record = await self.get_one_by_id(id)
+            if not existing_record:
+                return False
+
+            # Удаляем запись
+            stmt = delete(self.model).where(self.model.id == id)
+            result = await self._session.execute(stmt)
+            await self._session.flush()
+
+            logger.info(f"Удалено физическое лицо с ID {id}")
+            return result.rowcount > 0
+        except SQLAlchemyError as e:
+            logger.error(f"Ошибка при удалении физического лица с ID {id}: {e}")
+            raise
+
 
 class EmployeesRepo(BaseRepository):
     model = Employees
@@ -161,6 +287,33 @@ class EmployeesRepo(BaseRepository):
                 query = query.filter(
                     self.model.employee_status.ilike(f"%{filters.employee_status}%")
                 )
+
+            # Фильтрация по дате создания сотрудника
+            if filters.empl_create_date_from is not None:
+                query = query.filter(
+                    self.model.empl_create_date >= filters.empl_create_date_from
+                )
+
+            if filters.empl_create_date_to is not None:
+                query = query.filter(
+                    self.model.empl_create_date <= filters.empl_create_date_to
+                )
+
+            # Фильтрация по данным из связанных таблиц
+            if filters.fl_surname is not None:
+                query = query.filter(DicFl.surname.ilike(f"%{filters.fl_surname}%"))
+
+            if filters.fl_name is not None:
+                query = query.filter(DicFl.name.ilike(f"%{filters.fl_name}%"))
+
+            if filters.fl_iin is not None:
+                query = query.filter(DicFl.iin.ilike(f"%{filters.fl_iin}%"))
+
+            if filters.ul_name is not None:
+                query = query.filter(DicUl.name.ilike(f"%{filters.ul_name}%"))
+
+            if filters.ul_bin is not None:
+                query = query.filter(DicUl.bin.ilike(f"%{filters.ul_bin}%"))
 
             query = query.order_by(self.model.id.desc())
 
@@ -215,4 +368,65 @@ class EmployeesRepo(BaseRepository):
             return records, total
         except SQLAlchemyError as e:
             logger.error(f"Ошибка при поиске сотрудников: {e}")
+            raise
+
+    async def create(self, data: EmployeesCreateDto) -> Employees:
+        """Создать нового сотрудника"""
+        try:
+            new_record = self.model(**data.model_dump(exclude_unset=True))
+            self._session.add(new_record)
+            await self._session.flush()
+            await self._session.refresh(new_record)
+            logger.info(f"Создан новый сотрудник с ID {new_record.id}")
+            return new_record
+        except SQLAlchemyError as e:
+            logger.error(f"Ошибка при создании сотрудника: {e}")
+            raise
+
+    async def update_by_id(
+        self, id: int, data: EmployeesUpdateDto
+    ) -> Optional[Employees]:
+        """Обновить сотрудника по ID"""
+        try:
+            # Проверяем существование записи
+            existing_record = await self.get_one_by_id(id)
+            if not existing_record:
+                return None
+
+            # Обновляем запись
+            update_data = data.model_dump(exclude_unset=True)
+            if update_data:
+                stmt = (
+                    update(self.model).where(self.model.id == id).values(**update_data)
+                )
+                await self._session.execute(stmt)
+                await self._session.flush()
+
+                # Получаем обновленную запись
+                updated_record = await self.get_one_by_id(id)
+                logger.info(f"Обновлен сотрудник с ID {id}")
+                return updated_record
+
+            return existing_record
+        except SQLAlchemyError as e:
+            logger.error(f"Ошибка при обновлении сотрудника с ID {id}: {e}")
+            raise
+
+    async def delete_by_id(self, id: int) -> bool:
+        """Удалить сотрудника по ID"""
+        try:
+            # Проверяем существование записи
+            existing_record = await self.get_one_by_id(id)
+            if not existing_record:
+                return False
+
+            # Удаляем запись
+            stmt = delete(self.model).where(self.model.id == id)
+            result = await self._session.execute(stmt)
+            await self._session.flush()
+
+            logger.info(f"Удален сотрудник с ID {id}")
+            return result.rowcount > 0
+        except SQLAlchemyError as e:
+            logger.error(f"Ошибка при удалении сотрудника с ID {id}: {e}")
             raise

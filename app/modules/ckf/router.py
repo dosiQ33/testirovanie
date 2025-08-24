@@ -204,9 +204,9 @@ class OrganizationsRouter(APIRouter):
         session: AsyncSession = Depends(get_session_with_commit),
     ):
         esf_seller = await EsfSellerRepo(session).get_by_organization_id(id)
-        esf_seller_daily = await EsfSellerDailyRepo(session).get_by_organization_id(id)
+        esf_seller_daily = await EsfSellerDailyRepo(session).get_sum_by_organization_id(id)
         esf_buyer = await EsfBuyerRepo(session).get_by_organization_id(id)
-        esf_buyer_daily = await EsfBuyerDailyRepo(session).get_by_organization_id(id)
+        esf_buyer_daily = await EsfBuyerDailyRepo(session).get_sum_by_organization_id(id)
 
         return {
             "esf_seller": (

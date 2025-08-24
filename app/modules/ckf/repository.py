@@ -789,6 +789,23 @@ class EsfSellerRepo(BaseWithOrganizationRepository):
 class EsfSellerDailyRepo(BaseWithOrganizationRepository):
     model = EsfSellerDaily
 
+    async def get_sum_by_organization_id(self, id: int):
+        query = (
+            select(
+                EsfSellerDaily.organization_id,
+                func.sum(EsfSellerDaily.total_amount).label('total_amount'),
+                func.sum(EsfSellerDaily.nds_amount).label('nds_amount'),
+                func.sum(EsfSellerDaily.num_esf).label('num_esf')
+            )
+            .where(EsfSellerDaily.organization_id == id)
+            .group_by(EsfSellerDaily.organization_id)
+        )
+
+        result = await self._session.execute(query)
+        row = result.mappings().one_or_none()   
+        
+        return dict(row) if row else None
+
 
 class EsfBuyerRepo(BaseWithOrganizationRepository):
     model = EsfBuyer
@@ -796,6 +813,23 @@ class EsfBuyerRepo(BaseWithOrganizationRepository):
 
 class EsfBuyerDailyRepo(BaseWithOrganizationRepository):
     model = EsfBuyerDaily
+
+    async def get_sum_by_organization_id(self, id: int):
+        query = (
+            select(
+                EsfBuyerDaily.organization_id,
+                func.sum(EsfBuyerDaily.total_amount).label('total_amount'),
+                func.sum(EsfBuyerDaily.nds_amount).label('nds_amount'),
+            )
+            .where(EsfBuyerDaily.organization_id == id)
+            .group_by(EsfBuyerDaily.organization_id)
+        )
+
+        result = await self._session.execute(query)
+        row = result.mappings().one_or_none()   
+        
+        return dict(row) if row else None
+
 
 
 class EsfStatisticsRepo(BaseWithOrganizationRepository):

@@ -18,6 +18,7 @@ from app.modules.admins.router import router as router_admins
 from app.modules.regions.router import router as router_regions
 from app.modules.receipts_click.router import router as router_receipts_click
 from app.modules.egkn.router import router as router_egkn
+from app.modules.ckl.router import router as router_ckl
 
 
 @asynccontextmanager
@@ -46,7 +47,7 @@ def register_routers(app: FastAPI) -> None:
     app.include_router(root_router, tags=["root"])
 
     app.include_router(router_ckf, prefix=global_prefix_v1)
-    # app.include_router(router_ckl, prefix=global_prefix_v1) # Временно отключен
+    app.include_router(router_ckl, prefix=global_prefix_v1)
 
     app.include_router(router_nsi, prefix=global_prefix_v1)
     app.include_router(router_ext, prefix=global_prefix_v1)

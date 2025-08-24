@@ -174,7 +174,7 @@ class RiskInfosDto(BaseDto):
     ugd: Optional[CommonRefDto] = None
 
 
-class EsfSellerBuyerSimpleDto(BaseDto):
+class EsfSellerBuyerSimpleDto(BasestDto):
     organization_id: Optional[int] = None
 
     total_amount: Optional[float] = None

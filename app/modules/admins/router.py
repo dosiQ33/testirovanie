@@ -9,6 +9,7 @@ from loguru import logger
 from app.database.deps import get_session_with_commit
 from app.modules.common.router import BaseCRUDRouter, request_key_builder, cache_ttl
 from .dtos import (
+    EmployeeInfoDto,
     EmployeesDto,
     DicUlDto,
     DicRolesDto,
@@ -24,6 +25,8 @@ from .dtos import (
 from .models import Employees, DicUl, DicRoles, DicFl
 from .repository import EmployeesRepo, DicUlRepo, DicRolesRepo, DicFlRepo
 from .filters import EmployeesFilter, DicUlFilter, DicRolesFilter, DicFlFilter
+from app.modules.admins.deps import get_current_employee
+from app.modules.admins.auth import router as auth_router
 
 router = APIRouter(prefix="/admins")
 
@@ -512,6 +515,15 @@ class EmployeesRouter(APIRouter):
             )
 
 
+@router.get("/me", response_model=EmployeeInfoDto)
+async def get_current_employee_info(
+    current_employee: Employees = Depends(get_current_employee),
+) -> EmployeeInfoDto:
+    """Получить информацию о текущем авторизованном сотруднике"""
+    return EmployeeInfoDto.model_validate(current_employee)
+
+
+router.include_router(auth_router)
 router.include_router(dic_roles_router)
 router.include_router(DicFlRouter())
 router.include_router(DicUlRouter())

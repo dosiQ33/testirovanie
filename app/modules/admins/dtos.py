@@ -1,6 +1,9 @@
-from typing import Optional
+from typing import Optional, Self
 from datetime import datetime, date
 from app.modules.common.dto import BaseDto, BasestDto
+from pydantic import model_validator
+
+from app.modules.auth.utils import get_password_hash, verify_password
 
 
 class DicUlDto(BasestDto):
@@ -65,7 +68,6 @@ class DicUlCreateDto(BasestDto):
     kato: Optional[str] = None
     oblast_id: Optional[int] = None
     raion_id: Optional[int] = None
-    # create_date заполняется автоматически в базе данных
 
 
 class DicRolesCreateDto(BasestDto):
@@ -82,7 +84,6 @@ class DicFlCreateDto(BasestDto):
     date_of_birth: Optional[date] = None
     email: Optional[str] = None
     phone: Optional[str] = None
-    # create_date заполняется автоматически в базе данных
 
 
 class EmployeesCreateDto(BasestDto):
@@ -93,10 +94,15 @@ class EmployeesCreateDto(BasestDto):
     password: Optional[str] = None
     deleted: Optional[bool] = None
     blocked: Optional[bool] = None
-    # empl_create_date заполняется автоматически в базе данных
     employee_position: Optional[str] = None
     employee_department: Optional[str] = None
     employee_status: Optional[str] = None
+
+    @model_validator(mode="after")
+    def hash_password(self) -> Self:
+        if self.password:
+            self.password = get_password_hash(self.password)
+        return self
 
 
 # Update DTOs (новые)
@@ -133,6 +139,12 @@ class EmployeesUpdateDto(BasestDto):
     employee_department: Optional[str] = None
     employee_status: Optional[str] = None
 
+    @model_validator(mode="after")
+    def hash_password(self) -> Self:
+        if self.password:
+            self.password = get_password_hash(self.password)
+        return self
+
 
 # Filter DTOs (существующие с дополнениями)
 class EmployeesFilterDto(BasestDto):
@@ -148,13 +160,30 @@ class EmployeesFilterDto(BasestDto):
     employee_position: Optional[str] = None
     employee_department: Optional[str] = None
     employee_status: Optional[str] = None
-    # Новые поля для фильтрации по дате
     empl_create_date_from: Optional[datetime] = None
     empl_create_date_to: Optional[datetime] = None
 
-    # Дополнительные поля для фильтрации по связанным таблицам
-    fl_surname: Optional[str] = None  # Фамилия из dic_fl
-    fl_name: Optional[str] = None  # Имя из dic_fl
-    fl_iin: Optional[str] = None  # ИИН из dic_fl
-    ul_name: Optional[str] = None  # Название из dic_ul
-    ul_bin: Optional[str] = None  # БИН из dic_ul
+    fl_surname: Optional[str] = None
+    fl_name: Optional[str] = None
+    fl_iin: Optional[str] = None
+    ul_name: Optional[str] = None
+    ul_bin: Optional[str] = None
+
+
+class EmployeeLoginDto(BasestDto):
+    login: Optional[str] = None
+    password: Optional[str] = None
+
+
+class EmployeeInfoDto(BasestDto):
+    id: int
+    login: str
+    employee_position: Optional[str] = None
+    employee_department: Optional[str] = None
+    employee_status: Optional[str] = None
+    deleted: bool
+    blocked: bool
+
+    fl: Optional[DicFlDto] = None
+    ul: Optional[DicUlDto] = None
+    role_ref: Optional[DicRolesDto] = None

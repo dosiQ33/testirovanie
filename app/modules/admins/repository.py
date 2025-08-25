@@ -430,3 +430,18 @@ class EmployeesRepo(BaseRepository):
         except SQLAlchemyError as e:
             logger.error(f"Ошибка при удалении сотрудника с ID {id}: {e}")
             raise
+
+    async def get_by_login(self, login: str) -> Optional[Employees]:
+        """Получить сотрудника по логину"""
+        try:
+            query = select(self.model).filter_by(login=login)
+            result = await self._session.execute(query)
+            record = result.unique().scalar_one_or_none()
+
+            logger.info(
+                f"Сотрудник с логином {login} {'найден' if record else 'не найден'}"
+            )
+            return record
+        except SQLAlchemyError as e:
+            logger.error(f"Ошибка при поиске сотрудника по логину {login}: {e}")
+            raise

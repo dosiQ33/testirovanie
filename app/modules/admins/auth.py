@@ -23,13 +23,11 @@ async def login_employee(
     employees_repo = EmployeesRepo(session)
     employee = await employees_repo.get_by_login(login_data.login)
 
-    # Проверяем существование сотрудника
     if not employee:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Неверный логин или пароль"
         )
 
-    # Проверяем статус сотрудника
     if employee.deleted:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Учетная запись удалена"
@@ -40,13 +38,11 @@ async def login_employee(
             status_code=status.HTTP_403_FORBIDDEN, detail="Учетная запись заблокирована"
         )
 
-    # Проверяем пароль
     if not verify_password(login_data.password, employee.password):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Неверный логин или пароль"
         )
 
-    # Создаем токены (используем employee.id как user_id)
     set_tokens(response, employee.id)
 
     logger.info(f"Сотрудник {employee.login} успешно авторизовался")

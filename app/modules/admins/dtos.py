@@ -1,9 +1,9 @@
 from typing import Optional, Self
 from datetime import datetime, date
-from app.modules.common.dto import BaseDto, BasestDto
+from app.modules.common.dto import BasestDto
 from pydantic import model_validator
 
-from app.modules.auth.utils import get_password_hash, verify_password
+from app.modules.auth.utils import get_password_hash
 
 
 class DicUlDto(BasestDto):
@@ -58,7 +58,6 @@ class EmployeesDto(BasestDto):
     role_ref: Optional[DicRolesDto] = None
 
 
-# Create DTOs (обновленные - create_date заполняется автоматически)
 class DicUlCreateDto(BasestDto):
     parent_id: Optional[int] = None
     bin: Optional[str] = None
@@ -105,7 +104,6 @@ class EmployeesCreateDto(BasestDto):
         return self
 
 
-# Update DTOs (новые)
 class DicFlUpdateDto(BasestDto):
     iin: Optional[str] = None
     surname: Optional[str] = None
@@ -146,10 +144,7 @@ class EmployeesUpdateDto(BasestDto):
         return self
 
 
-# Filter DTOs (существующие с дополнениями)
 class EmployeesFilterDto(BasestDto):
-    """DTO for filtering employees"""
-
     id: Optional[int] = None
     fl_id: Optional[int] = None
     ul_id: Optional[int] = None

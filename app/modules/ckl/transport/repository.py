@@ -1,7 +1,4 @@
-from sqlalchemy import (
-    select,
-    func,
-)
+from sqlalchemy import select
 
 from app.modules.common.repository import BaseRepository
 from ..common.models import Countries

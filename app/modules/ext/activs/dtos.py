@@ -96,7 +96,7 @@ class IucAlkoResponseDto(BasestDto):
     name_ru: str
     iin_bin: str
     address: str
-    organization_id: int
+    organization_id: Optional[int]
 
 class IucZernoResponseDto(BasestDto):
     subject_name: str
@@ -104,22 +104,22 @@ class IucZernoResponseDto(BasestDto):
     address: str
     granary_capacity_tons: str
     load_capacity_tons: str
-    organization_id: int
+    organization_id: Optional[int]
 
 class IucNeftebasaResponseDto(BasestDto):
     object_name: str
     iin_bin: str
     address: str
-    organization_id: int
+    organization_id: Optional[int]
 
 class IucNpzResponseDto(BasestDto):
     object_name: str
     iin_bin: str
     address: str
-    organization_id: int
+    organization_id: Optional[int]
 
 class IucAzsResponseDto(BasestDto):
     object_name: str
     iin_bin: str
     address: str
-    organization_id: int
+    organization_id: Optional[int]

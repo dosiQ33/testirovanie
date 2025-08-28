@@ -298,7 +298,11 @@ class OrganizationsRepo(BaseRepository):
                 )
                 .outerjoin(EsfSeller, Organizations.id == EsfSeller.organization_id)
                 .outerjoin(EsfBuyer, Organizations.id == EsfBuyer.organization_id)
-                .outerjoin(Kkms, (Organizations.id == Kkms.organization_id) and (Kkms.date_stop.is_(None)))
+                .outerjoin(
+                    Kkms,
+                    (Organizations.id == Kkms.organization_id)
+                    and (Kkms.date_stop.is_(None)),
+                )
                 .outerjoin(ReceiptsAnnual, Kkms.id == ReceiptsAnnual.kkms_id)
                 .where(
                     ST_Within(Organizations.shape, territory_geom),
@@ -330,7 +334,7 @@ class KkmsRepo(BaseRepository):
 
         try:
             query = text(
-                f"SELECT t.id, organization_id, reg_number, t.shape, o.name_ru, o.iin_bin FROM {self.model.__tablename__} t LEFT JOIN organizations o ON t.organization_id = o.id WHERE t.shape && ST_MakeEnvelope(:minx, :miny, :maxx, :maxy, :srid);"
+                f"SELECT t.id, organization_id, reg_number, t.shape, o.name_ru, o.iin_bin FROM {self.model.__tablename__} t LEFT JOIN organizations o ON t.organization_id = o.id WHERE t.shape && ST_MakeEnvelope(:minx, :miny, :maxx, :maxy, :srid) AND (t.date_stop IS NULL OR t.date_stop > CURRENT_DATE);"
             ).bindparams(
                 minx=dto.bbox[0],
                 miny=dto.bbox[1],
@@ -500,38 +504,28 @@ class KkmsRepo(BaseRepository):
             raise
 
     async def get_active_kkms_info(self, id: int):
-        query = (
-            select(
-                Kkms.id,
-                Kkms.organization_id,
-                Kkms.reg_number,
-                Kkms.serial_number,
-                Kkms.model_name,
-                Kkms.made_year,
-                Kkms.date_start,
-                Kkms.date_stop,
-                Kkms.address,
-                Kkms.shape
-            )
-            .where(
-                Kkms.date_stop.is_(None),
-                Kkms.organization_id == id
-            )
-        )
+        query = select(
+            Kkms.id,
+            Kkms.organization_id,
+            Kkms.reg_number,
+            Kkms.serial_number,
+            Kkms.model_name,
+            Kkms.made_year,
+            Kkms.date_start,
+            Kkms.date_stop,
+            Kkms.address,
+            Kkms.shape,
+        ).where(Kkms.date_stop.is_(None), Kkms.organization_id == id)
 
         result = await self._session.execute(query)
         response = result.all()
 
         return response
-    
+
     async def get_active_kkms_count(self, id: int):
         query = (
-            select(
-                func.count()
-            )
-            .select_from(
-                Kkms
-            )
+            select(func.count())
+            .select_from(Kkms)
             .where(Kkms.date_stop.is_(None), Kkms.organization_id == id)
         )
 
@@ -793,17 +787,17 @@ class EsfSellerDailyRepo(BaseWithOrganizationRepository):
         query = (
             select(
                 EsfSellerDaily.organization_id,
-                func.sum(EsfSellerDaily.total_amount).label('total_amount'),
-                func.sum(EsfSellerDaily.nds_amount).label('nds_amount'),
-                func.sum(EsfSellerDaily.num_esf).label('num_esf')
+                func.sum(EsfSellerDaily.total_amount).label("total_amount"),
+                func.sum(EsfSellerDaily.nds_amount).label("nds_amount"),
+                func.sum(EsfSellerDaily.num_esf).label("num_esf"),
             )
             .where(EsfSellerDaily.organization_id == id)
             .group_by(EsfSellerDaily.organization_id)
         )
 
         result = await self._session.execute(query)
-        row = result.mappings().one_or_none()   
-        
+        row = result.mappings().one_or_none()
+
         return dict(row) if row else None
 
 
@@ -818,18 +812,17 @@ class EsfBuyerDailyRepo(BaseWithOrganizationRepository):
         query = (
             select(
                 EsfBuyerDaily.organization_id,
-                func.sum(EsfBuyerDaily.total_amount).label('total_amount'),
-                func.sum(EsfBuyerDaily.nds_amount).label('nds_amount'),
+                func.sum(EsfBuyerDaily.total_amount).label("total_amount"),
+                func.sum(EsfBuyerDaily.nds_amount).label("nds_amount"),
             )
             .where(EsfBuyerDaily.organization_id == id)
             .group_by(EsfBuyerDaily.organization_id)
         )
 
         result = await self._session.execute(query)
-        row = result.mappings().one_or_none()   
-        
-        return dict(row) if row else None
+        row = result.mappings().one_or_none()
 
+        return dict(row) if row else None
 
 
 class EsfStatisticsRepo(BaseWithOrganizationRepository):
@@ -1209,17 +1202,14 @@ class ReceiptsRepo(BaseWithKkmRepository):
             )
 
             # Подзапрос для дневной статистики
-            daily_stats_subq = (
-                select(
-                    func.coalesce(func.sum(ReceiptsDaily.check_sum), 0).label(
-                        "daily_turnover"
-                    ),
-                    func.coalesce(func.sum(ReceiptsDaily.check_count), 0).label(
-                        "daily_receipts_count"
-                    ),
-                )
-                .select_from(ReceiptsDaily)
-            )
+            daily_stats_subq = select(
+                func.coalesce(func.sum(ReceiptsDaily.check_sum), 0).label(
+                    "daily_turnover"
+                ),
+                func.coalesce(func.sum(ReceiptsDaily.check_count), 0).label(
+                    "daily_receipts_count"
+                ),
+            ).select_from(ReceiptsDaily)
 
             # Подзапрос для годовой статистики
             yearly_stats_subq = (

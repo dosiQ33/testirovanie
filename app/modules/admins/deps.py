@@ -10,7 +10,6 @@ from app.database.deps import get_session_without_commit
 
 
 def get_employee_access_token(request: Request) -> str:
-    """Извлекаем access_token сотрудника из кук."""
     token = request.cookies.get("employee_access_token")
     if not token:
         raise HTTPException(
@@ -24,9 +23,7 @@ async def get_current_employee(
     token: str = Depends(get_employee_access_token),
     session: AsyncSession = Depends(get_session_without_commit),
 ) -> Employees:
-    """Проверяем access_token и возвращаем сотрудника."""
     try:
-        # Декодируем токен
         payload = jwt.decode(
             token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
         )
@@ -74,9 +71,8 @@ async def get_current_employee(
 async def get_current_admin_employee(
     current_employee: Employees = Depends(get_current_employee),
 ) -> Employees:
-    """Проверяем права сотрудника как администратора."""
-    # Предполагаем, что роли 3 и 4 - административные
-    if current_employee.role in [3, 4]:
+    """Проверяем права сотрудника как администратора"""
+    if current_employee.role in [3]:
         return current_employee
 
     raise HTTPException(

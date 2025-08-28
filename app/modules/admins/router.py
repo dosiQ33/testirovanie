@@ -30,7 +30,6 @@ from app.modules.admins.auth import router as auth_router
 
 router = APIRouter(prefix="/admins")
 
-# Роутер для справочника ролей (без изменений)
 dic_roles_router = BaseCRUDRouter(
     "dic-roles",
     DicRoles,
@@ -116,7 +115,6 @@ class DicFlRouter(APIRouter):
         - **phone**: телефон
         - **create_date**: дата создания
         """
-        # Проверяем уникальность ИИН если указан
         if data.iin:
             existing = await DicFlRepo(session).get_by_iin(data.iin)
             if existing:
@@ -146,7 +144,6 @@ class DicFlRouter(APIRouter):
         - **email**: электронная почта
         - **phone**: телефон
         """
-        # Проверяем уникальность ИИН если он изменяется
         if data.iin:
             existing = await DicFlRepo(session).get_by_iin(data.iin)
             if existing and existing.id != id:
@@ -259,7 +256,6 @@ class DicUlRouter(APIRouter):
         - **raion_id**: ID района
         - **create_date**: дата создания
         """
-        # Проверяем уникальность БИН если указан
         if data.bin:
             existing = await DicUlRepo(session).get_by_bin(data.bin)
             if existing:
@@ -290,7 +286,6 @@ class DicUlRouter(APIRouter):
         - **oblast_id**: ID области
         - **raion_id**: ID района
         """
-        # Проверяем уникальность БИН если он изменяется
         if data.bin:
             existing = await DicUlRepo(session).get_by_bin(data.bin)
             if existing and existing.id != id:
@@ -395,7 +390,6 @@ class EmployeesRouter(APIRouter):
         - **employee_department**: отдел
         - **employee_status**: статус сотрудника
         """
-        # Проверяем уникальность логина если указан
         if data.login:
             existing_employees = await EmployeesRepo(session).filter_employees(
                 EmployeesFilterDto(login=data.login)
@@ -406,7 +400,6 @@ class EmployeesRouter(APIRouter):
                     detail=f"Сотрудник с логином {data.login} уже существует",
                 )
 
-        # Проверяем существование связанных записей
         if data.fl_id:
             fl = await DicFlRepo(session).get_one_by_id(data.fl_id)
             if not fl:
@@ -455,7 +448,6 @@ class EmployeesRouter(APIRouter):
         - **employee_department**: отдел
         - **employee_status**: статус сотрудника
         """
-        # Проверяем уникальность логина если он изменяется
         if data.login:
             existing_employees = await EmployeesRepo(session).filter_employees(
                 EmployeesFilterDto(login=data.login)
@@ -466,7 +458,6 @@ class EmployeesRouter(APIRouter):
                     detail=f"Сотрудник с логином {data.login} уже существует",
                 )
 
-        # Проверяем существование связанных записей
         if data.fl_id:
             fl = await DicFlRepo(session).get_one_by_id(data.fl_id)
             if not fl:

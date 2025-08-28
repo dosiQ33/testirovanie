@@ -79,12 +79,10 @@ class DicUlRepo(BaseRepository):
     async def update_by_id(self, id: int, data: DicUlUpdateDto) -> Optional[DicUl]:
         """Обновить организацию по ID"""
         try:
-            # Проверяем существование записи
             existing_record = await self.get_one_by_id(id)
             if not existing_record:
                 return None
 
-            # Обновляем запись
             update_data = data.model_dump(exclude_unset=True)
             if update_data:
                 stmt = (
@@ -93,7 +91,6 @@ class DicUlRepo(BaseRepository):
                 await self._session.execute(stmt)
                 await self._session.flush()
 
-                # Получаем обновленную запись
                 updated_record = await self.get_one_by_id(id)
                 logger.info(f"Обновлена организация с ID {id}")
                 return updated_record
@@ -106,12 +103,10 @@ class DicUlRepo(BaseRepository):
     async def delete_by_id(self, id: int) -> bool:
         """Удалить организацию по ID"""
         try:
-            # Проверяем существование записи
             existing_record = await self.get_one_by_id(id)
             if not existing_record:
                 return False
 
-            # Удаляем запись
             stmt = delete(self.model).where(self.model.id == id)
             result = await self._session.execute(stmt)
             await self._session.flush()
@@ -193,12 +188,10 @@ class DicFlRepo(BaseRepository):
     async def update_by_id(self, id: int, data: DicFlUpdateDto) -> Optional[DicFl]:
         """Обновить физическое лицо по ID"""
         try:
-            # Проверяем существование записи
             existing_record = await self.get_one_by_id(id)
             if not existing_record:
                 return None
 
-            # Обновляем запись
             update_data = data.model_dump(exclude_unset=True)
             if update_data:
                 stmt = (
@@ -207,7 +200,6 @@ class DicFlRepo(BaseRepository):
                 await self._session.execute(stmt)
                 await self._session.flush()
 
-                # Получаем обновленную запись
                 updated_record = await self.get_one_by_id(id)
                 logger.info(f"Обновлено физическое лицо с ID {id}")
                 return updated_record
@@ -220,12 +212,10 @@ class DicFlRepo(BaseRepository):
     async def delete_by_id(self, id: int) -> bool:
         """Удалить физическое лицо по ID"""
         try:
-            # Проверяем существование записи
             existing_record = await self.get_one_by_id(id)
             if not existing_record:
                 return False
 
-            # Удаляем запись
             stmt = delete(self.model).where(self.model.id == id)
             result = await self._session.execute(stmt)
             await self._session.flush()
@@ -288,7 +278,6 @@ class EmployeesRepo(BaseRepository):
                     self.model.employee_status.ilike(f"%{filters.employee_status}%")
                 )
 
-            # Фильтрация по дате создания сотрудника
             if filters.empl_create_date_from is not None:
                 query = query.filter(
                     self.model.empl_create_date >= filters.empl_create_date_from
@@ -299,7 +288,6 @@ class EmployeesRepo(BaseRepository):
                     self.model.empl_create_date <= filters.empl_create_date_to
                 )
 
-            # Фильтрация по данным из связанных таблиц
             if filters.fl_surname is not None:
                 query = query.filter(DicFl.surname.ilike(f"%{filters.fl_surname}%"))
 
@@ -388,12 +376,10 @@ class EmployeesRepo(BaseRepository):
     ) -> Optional[Employees]:
         """Обновить сотрудника по ID"""
         try:
-            # Проверяем существование записи
             existing_record = await self.get_one_by_id(id)
             if not existing_record:
                 return None
 
-            # Обновляем запись
             update_data = data.model_dump(exclude_unset=True)
             if update_data:
                 stmt = (
@@ -402,7 +388,6 @@ class EmployeesRepo(BaseRepository):
                 await self._session.execute(stmt)
                 await self._session.flush()
 
-                # Получаем обновленную запись
                 updated_record = await self.get_one_by_id(id)
                 logger.info(f"Обновлен сотрудник с ID {id}")
                 return updated_record
@@ -415,12 +400,10 @@ class EmployeesRepo(BaseRepository):
     async def delete_by_id(self, id: int) -> bool:
         """Удалить сотрудника по ID"""
         try:
-            # Проверяем существование записи
             existing_record = await self.get_one_by_id(id)
             if not existing_record:
                 return False
 
-            # Удаляем запись
             stmt = delete(self.model).where(self.model.id == id)
             result = await self._session.execute(stmt)
             await self._session.flush()

@@ -19,6 +19,7 @@ from sqlalchemy import (
     union_all,
     literal,
     case,
+    Date,
     Text,
     Numeric,
     desc,
@@ -48,6 +49,7 @@ from .dtos import (
     OrganizationsFilterDto,
     BuildingsFilterDto,
     KkmStatisticsRequestDto,
+    SzptRegionRequestDto,
 )
 from .models import (
     EsfBuyer,
@@ -66,6 +68,7 @@ from .models import (
     RiskInfos,
     DicSzpt,
     ReceiptsMonthly,
+    KkmsSzpt,
 )
 from typing import Optional
 from datetime import date
@@ -1297,32 +1300,8 @@ class ReceiptsRepo(BaseWithKkmRepository):
                 )
             )
 
-            daily_receipts_query_1 = (
-                select(
-                    func.coalesce(func.sum(ReceiptsDaily.check_sum), 0).label(
-                        "daily_turnover"
-                    ),
-                    Kkms.reg_number,
-                )
-                .select_from(ReceiptsDaily)
-                .join(Kkms, ReceiptsDaily.kkms_id == Kkms.id)
-                .filter(
-                    Kkms.date_stop.is_(None),
-                    # ReceiptsDaily.date_check == current_date,
-                    func.ST_Within(Kkms.shape, territory),
-                )
-                .group_by(Kkms.reg_number)
-            )
-
             daily_receipts_result = await self._session.execute(daily_receipts_query)
             daily_result = daily_receipts_result.one()
-
-            daily_receipts_result_1 = await self._session.execute(
-                daily_receipts_query_1
-            )
-            daily_result_1 = daily_receipts_result_1.mappings().all()
-
-            print(daily_result_1)
 
             annual_receipts_result = await self._session.execute(annual_receipts_query)
             annual_result = annual_receipts_result.one()
@@ -1356,6 +1335,11 @@ class ReceiptsRepo(BaseWithKkmRepository):
                 .select_from(Receipts)
                 .outerjoin(Kkms, Kkms.id == Receipts.kkms_id)
                 .outerjoin(Organizations, Organizations.id == Kkms.organization_id)
+                .where(
+                    Receipts.operation_date
+                    >= func.timezone("Asia/Almaty", func.current_date()),
+                    Receipts.operation_date <= func.timezone("Asia/Almaty", func.now()),
+                )
                 .order_by(desc(Receipts.operation_date))
                 .limit(limit)
             )
@@ -1363,11 +1347,11 @@ class ReceiptsRepo(BaseWithKkmRepository):
             result = await self._session.execute(query)
             records = result.all()
 
-            logger.info(f"Найдено {len(records)} записей последних чеков с деталями.")
+            logger.info(f"Найдено {len(records)} записей сегодняшних чеков с деталями.")
 
             return [dict(record._mapping) for record in records]
         except SQLAlchemyError as e:
-            logger.error(f"Ошибка при получении последних чеков с деталями: {e}")
+            logger.error(f"Ошибка при получении сегодняшних чеков с деталями: {e}")
             raise
 
 
@@ -1448,6 +1432,93 @@ class SzptRepo(BaseRepository):
             return {
                 "products": [dict(row) for row in rows],
             }
+        except SQLAlchemyError as e:
+            logger.error(f"Ошибка при получении ККМ с нарушениями: {e}")
+            raise
+
+    async def count_by_year_and_regions(self, filters: SzptRegionRequestDto):
+        try:
+            query = select(
+                func.round(func.sum(KkmsSzpt.szpt_sum.cast(Numeric)), 2).label(
+                    "turnover"
+                ),
+                func.count(func.distinct(KkmsSzpt.kkms_id)).label("kkms_count"),
+            ).where(func.extract("year", KkmsSzpt.month) == filters.year)
+
+            if filters.region != RegionEnum.rk:
+                territory_geom = territory_to_geo_element(filters.territory)
+                query = query.join(Kkms, KkmsSzpt.kkms_id == Kkms.id).where(
+                    ST_Within(Kkms.shape, territory_geom)
+                )
+
+            if filters.szpt_id:
+                clean_count_val = cast(
+                    func.nullif(cast(KkmsSzpt.szpt_count, Text), 'NaN'),
+                    Numeric
+                )
+                
+                szpt_count_col = cast(
+                    func.round(func.sum(clean_count_val), 2),
+                    Numeric
+                ).label("szpt_count")
+
+                query = (
+                    query.add_columns(szpt_count_col, DicSzpt.unit)
+                        .join(DicSzpt, KkmsSzpt.szpt_id == DicSzpt.id)
+                        .where(KkmsSzpt.szpt_id == filters.szpt_id)
+                        .group_by(DicSzpt.unit)
+                )
+
+            result = await self._session.execute(query)
+            response = result.one_or_none()
+
+            return dict(response._mapping) if response != None else None
+        except SQLAlchemyError as e:
+            logger.error(f"Ошибка при получении ККМ с нарушениями: {e}")
+            raise
+
+    async def monthly_by_year_and_region(self, filters: SzptRegionRequestDto):
+        try:
+            month_extract = func.extract("month", KkmsSzpt.month)
+
+            query = (
+                select(
+                    cast(month_extract, Integer).label("month"),
+                    func.round(func.sum(KkmsSzpt.szpt_sum.cast(Numeric)), 2).label(
+                        "turnover"
+                    ),
+                )
+                .where(func.extract("year", KkmsSzpt.month) == filters.year)
+                .group_by(month_extract)
+                .order_by(month_extract)
+            )
+
+            if filters.szpt_id:
+                clean_count_val = cast(
+                    func.nullif(cast(KkmsSzpt.szpt_count, Text), 'NaN'),
+                    Numeric
+                )
+                
+                szpt_count_col = cast(
+                    func.round(func.sum(clean_count_val), 2),
+                    Numeric
+                ).label("szpt_count")
+
+                query = (
+                    query.add_columns(szpt_count_col)
+                        .where(KkmsSzpt.szpt_id == filters.szpt_id)
+                )
+
+            if filters.region != RegionEnum.rk:
+                territory_geom = territory_to_geo_element(filters.territory)
+                query = query.join(Kkms, KkmsSzpt.kkms_id == Kkms.id).where(
+                    ST_Within(Kkms.shape, territory_geom)
+                )
+
+            result = await self._session.execute(query)
+            rows = result.all()
+
+            return [dict(row._mapping) for row in rows]
         except SQLAlchemyError as e:
             logger.error(f"Ошибка при получении ККМ с нарушениями: {e}")
             raise

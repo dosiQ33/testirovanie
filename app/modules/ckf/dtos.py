@@ -220,7 +220,7 @@ class ReceiptsDto(BaseDto):
     kkm: Optional[KkmsDto] = Field()
 
     operation_date: Optional[datetime]
-    auto_fiskal_mark_check: Optional[str]
+    auto_fiskal_mark_check: Optional[int]
     fiskal_sign: Optional[int] = Field()
     item_name: Optional[str]
     item_price: Optional[float]
@@ -229,6 +229,7 @@ class ReceiptsDto(BaseDto):
     full_item_price: Optional[float]
     payment_type: Optional[int]
     # updated_date: Optional[datetime]
+    gtin: Optional[str]
 
     @field_serializer("fiskal_sign")
     def serialize_country(self, fiskal_sign: Any, _info):
@@ -444,3 +445,10 @@ class ReceiptDetailDto(BasestDto):
     @field_serializer("fiskal_sign")
     def serialize_fiskal_sign(self, fiskal_sign: Any, _info):
         return fiskal_sign
+
+
+class SzptRegionRequestDto(BasestDto):
+    szpt_id: Optional[int] = None
+    year: int
+    territory: Optional[str] = None
+    region: RegionEnum

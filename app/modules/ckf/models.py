@@ -398,8 +398,8 @@ class Receipts(BaseModel):
     operation_date: Mapped[datetime] = mapped_column(
         comment="Дата и время совершения кассовой операции", nullable=True
     )
-    auto_fiskal_mark_check: Mapped[str] = mapped_column(
-        comment="Автономный фискальный номер", nullable=True
+    auto_fiskal_mark_check: Mapped[int] = mapped_column(
+        BigInteger, comment="Автономный фискальный номер", nullable=True
     )
     fiskal_sign: Mapped[int] = mapped_column(
         BigInteger, comment="Фискальный номер", nullable=True
@@ -413,6 +413,7 @@ class Receipts(BaseModel):
     full_item_price: Mapped[float] = mapped_column(comment="Итог", nullable=True)
     payment_type: Mapped[int] = mapped_column(comment="Вид оплаты", nullable=True)
 
+    gtin: Mapped[str] = mapped_column(comment="GTIN", nullable=True)
     # updated_date: Mapped[datetime] = mapped_column(comment="Дата заливки данных", nullable=True)
 
     # SZPT
@@ -454,18 +455,19 @@ class ReceiptsDaily(BaseModel):
     check_count: Mapped[int] = mapped_column(comment="Количество чеков", nullable=True)
     date_check: Mapped[date] = mapped_column(Date, comment="Дата", nullable=True)
 
+
 class ReceiptsMonthly(BasestModel):
-    __tablename__ = 'receipts_month'
-    __table_args__ = dict(comment='Чеки за месяц')
+    __tablename__ = "receipts_month"
+    __table_args__ = dict(comment="Чеки за месяц")
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     kkms_id: Mapped[int] = mapped_column(
-        ForeignKey('kkms.id'), comment='ККМ', nullable=False
+        ForeignKey("kkms.id"), comment="ККМ", nullable=False
     )
 
-    check_sum: Mapped[int] = mapped_column(comment='Сумма чека', nullable=True)
-    check_count: Mapped[int] = mapped_column(comment='Количество чеков', nullable=True)
-    month: Mapped[date] = mapped_column(comment='Дата', nullable=True)
+    check_sum: Mapped[int] = mapped_column(comment="Сумма чека", nullable=True)
+    check_count: Mapped[int] = mapped_column(comment="Количество чеков", nullable=True)
+    month: Mapped[date] = mapped_column(comment="Дата", nullable=True)
 
 
 class DicSzpt(BasestModel):
@@ -476,3 +478,17 @@ class DicSzpt(BasestModel):
     product_name: Mapped[str] = mapped_column(name="product_name", nullable=True)
     unit: Mapped[str] = mapped_column(name="unit", nullable=True)
     price: Mapped[int] = mapped_column(name="price", nullable=True)
+
+
+class KkmsSzpt(BaseModel):
+    __tablename__ = "kkms_szpt"
+    __table_args__ = dict(schema="public")
+
+    kkms_id: Mapped[int] = mapped_column(ForeignKey("public.kkms.id"), nullable=True)
+    szpt_id: Mapped[int] = mapped_column(
+        ForeignKey("public.dic_szpt_products.id"), nullable=True
+    )
+    szpt_unit: Mapped[str] = mapped_column(name="szpt_unit", nullable=True)
+    szpt_count: Mapped[float] = mapped_column(name="szpt_count", nullable=True)
+    szpt_sum: Mapped[float] = mapped_column(name="szpt_sum", nullable=True)
+    month: Mapped[date] = mapped_column(name="month", nullable=True)

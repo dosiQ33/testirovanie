@@ -24,6 +24,7 @@ from app.modules.common.dto import (
     ByYearAndRegionsFilterDto,
     CountByYearAndRegionsDto,
     TerritoryFilterDto,
+    
 )
 from app.modules.common.enums import RegionEnum
 from app.modules.common.router import (
@@ -76,6 +77,7 @@ from .dtos import (
     ProductsViolationDto,
     LastCheckViolationDto,
     ReceiptDetailDto,
+    SzptRegionRequestDto,
 )
 from .repository import (
     EsfBuyerDailyRepo,
@@ -1012,6 +1014,26 @@ class SzptRouter(APIRouter):
             percent=percent,
             overcharge=overcharge,
         )
+    
+    @sub_router.get("/by-year-regions")
+    @cache(expire=cache_ttl, key_builder=request_key_builder)
+    async def get_receipt_content(
+        filters: Annotated[SzptRegionRequestDto, Query()],
+        session: AsyncSession = Depends(get_session_without_commit),
+    ):
+        response = await SzptRepo(session).count_by_year_and_regions(filters)
+
+        return response
+
+    @sub_router.get("/monthly/by-year-regions")
+    @cache(expire=cache_ttl, key_builder=request_key_builder)
+    async def get_receipt_content(
+        filters: Annotated[SzptRegionRequestDto, Query()],
+        session: AsyncSession = Depends(get_session_without_commit),
+    ):
+        response = await SzptRepo(session).monthly_by_year_and_region(filters)
+
+        return response
 
 
 router.include_router(OrganizationsRouter())

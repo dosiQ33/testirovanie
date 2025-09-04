@@ -6,7 +6,7 @@ from fastapi_cache.decorator import cache
 
 from app.database.deps import get_session_with_commit
 
-from app.modules.common.router import BaseExtRouter, request_key_builder, cache_ttl
+from app.modules.common.router import request_key_builder, cache_ttl
 from app.modules.common.router import BaseCRUDRouter
 
 from .models import Vehicles
@@ -15,7 +15,7 @@ from .dtos import VehiclesDto
 
 from .repository import VehiclesRepo
 
-router = APIRouter(prefix="/vehicles")
+router = APIRouter(prefix="/transport")
 
 
 class VehiclesRouter(APIRouter):

@@ -19,6 +19,59 @@ def get_employee_access_token(request: Request) -> str:
     return token
 
 
+def get_employee_refresh_token(request: Request) -> str:
+    token = request.cookies.get("employee_refresh_token")
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh токен отсутствует",
+        )
+    return token
+
+
+async def check_employee_refresh_token(
+    token: str = Depends(get_employee_refresh_token),
+    session: AsyncSession = Depends(get_session_without_commit),
+) -> Employees:
+    """Проверяем refresh_token и возвращаем сотрудника."""
+    try:
+        payload = jwt.decode(
+            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+        )
+        employee_id = payload.get("sub")
+        if not employee_id:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Некорректный токен"
+            )
+
+        employee = await EmployeesRepo(session).get_one_by_id(int(employee_id))
+        if not employee:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Сотрудник не найден"
+            )
+
+        if employee.deleted:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="Учетная запись удалена"
+            )
+
+        if employee.blocked:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Учетная запись заблокирована",
+            )
+
+        return employee
+    except ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh токен истек"
+        )
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Неверный refresh токен"
+        )
+
+
 async def get_current_employee(
     token: str = Depends(get_employee_access_token),
     session: AsyncSession = Depends(get_session_without_commit),

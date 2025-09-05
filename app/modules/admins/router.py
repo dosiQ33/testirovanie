@@ -28,7 +28,7 @@ from .filters import EmployeesFilter, DicUlFilter, DicRolesFilter, DicFlFilter
 from app.modules.admins.deps import get_current_employee
 from app.modules.admins.auth import router as auth_router
 
-router = APIRouter(prefix="/admins")
+router = APIRouter(prefix="/admins", tags=["Admin Panel"])
 
 dic_roles_router = BaseCRUDRouter(
     "dic-roles",

@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
 
 from app.database.deps import get_session_with_commit, get_session_without_commit
-from app.modules.auth.utils import verify_password, set_tokens
+from app.modules.auth.utils import verify_password, set_employee_tokens
 from app.modules.admins.repository import EmployeesRepo
 from app.modules.admins.dtos import EmployeeLoginDto, EmployeeInfoDto
 from app.modules.admins.models import Employees
@@ -43,7 +43,7 @@ async def login_employee(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Неверный логин или пароль"
         )
 
-    set_tokens(response, employee.id)
+    set_employee_tokens(response, employee.id)
 
     logger.info(f"Сотрудник {employee.login} успешно авторизовался")
 

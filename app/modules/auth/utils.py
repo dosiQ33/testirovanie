@@ -9,8 +9,8 @@ def create_tokens(data: dict) -> dict:
     # Текущее время в UTC
     now = datetime.now(timezone.utc)
 
-    # AccessToken - 30 минут
-    access_expire = now + timedelta(seconds=10)
+    # AccessToken - 1 день
+    access_expire = now + timedelta(days=1)
     access_payload = data.copy()
     access_payload.update({"exp": int(access_expire.timestamp()), "type": "access"})
     access_token = jwt.encode(
@@ -59,17 +59,6 @@ def set_tokens(response: Response, user_id: int):
     )
 
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-
-def get_password_hash(password: str) -> str:
-    return pwd_context.hash(password)
-
-
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
-
-
 def set_employee_tokens(response: Response, employee_id: int):
     """Установить токены для сотрудника"""
     new_tokens = create_tokens(data={"sub": str(employee_id)})
@@ -91,3 +80,14 @@ def set_employee_tokens(response: Response, employee_id: int):
         secure=True,
         samesite="lax",
     )
+
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+
+def get_password_hash(password: str) -> str:
+    return pwd_context.hash(password)
+
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return pwd_context.verify(plain_password, hashed_password)

@@ -2,11 +2,16 @@ from datetime import datetime, timezone
 from fastapi import Request, Depends, HTTPException, status
 from jose import jwt, JWTError, ExpiredSignatureError
 from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import Security
 
 from app.modules.admins.repository import EmployeesRepo
 from app.modules.admins.models import Employees
 from app.config import settings
 from app.database.deps import get_session_without_commit
+
+
+security = HTTPBearer()
 
 
 def get_employee_access_token(request: Request) -> str:
@@ -73,9 +78,12 @@ async def check_employee_refresh_token(
 
 
 async def get_current_employee(
-    token: str = Depends(get_employee_access_token),
+    credentials: HTTPAuthorizationCredentials = Security(security),
     session: AsyncSession = Depends(get_session_without_commit),
 ) -> Employees:
+    """Получить текущего сотрудника по Bearer токену из headers"""
+    token = credentials.credentials
+
     try:
         payload = jwt.decode(
             token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]

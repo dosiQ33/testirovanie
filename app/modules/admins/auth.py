@@ -2,13 +2,14 @@ from fastapi import APIRouter, Response, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
 
-from app.database.deps import get_session_with_commit, get_session_without_commit
+from app.database.deps import get_session_without_commit
 from app.modules.auth.utils import verify_password, set_employee_tokens
 from app.modules.admins.repository import EmployeesRepo
 from app.modules.admins.dtos import EmployeeLoginDto, EmployeeInfoDto
 from app.modules.admins.models import Employees
+from app.modules.admins.deps import get_current_employee_bearer
 
-router = APIRouter(prefix="/admins/auth")
+router = APIRouter(tags=["admin panel:"])
 
 
 @router.post("/login/")
@@ -43,16 +44,27 @@ async def login_employee(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Неверный логин или пароль"
         )
 
-    set_employee_tokens(response, employee.id)
+    tokens = set_employee_tokens(response, employee.id)
 
     logger.info(f"Сотрудник {employee.login} успешно авторизовался")
 
-    return {"ok": True, "message": "Авторизация успешна!", "employee_id": employee.id}
+    return {
+        "ok": True,
+        "message": "Авторизация успешна!",
+        "employee_id": employee.id,
+        "access_token": tokens["access_token"],
+        "refresh_token": tokens["refresh_token"],
+    }
 
 
-@router.post("/logout")
-async def logout_employee(response: Response):
-    """Выход сотрудника из системы"""
-    response.delete_cookie("employee_access_token")
-    response.delete_cookie("employee_refresh_token")
-    return {"message": "Сотрудник успешно вышел из системы"}
+@router.get("/test-protected")
+async def test_protected_endpoint(
+    current_employee: Employees = Depends(get_current_employee_bearer),
+) -> dict:
+    """Тестовый защищенный эндпоинт для проверки Bearer авторизации"""
+    return {
+        "message": "Доступ разрешен!",
+        "employee_id": current_employee.id,
+        "employee_login": current_employee.login,
+        "employee_role": current_employee.role,
+    }

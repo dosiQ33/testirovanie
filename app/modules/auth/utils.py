@@ -81,6 +81,8 @@ def set_employee_tokens(response: Response, employee_id: int):
         samesite="lax",
     )
 
+    return new_tokens
+
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 

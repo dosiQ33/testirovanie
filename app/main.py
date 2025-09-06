@@ -74,6 +74,9 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
         docs_url="/apidocs",
         swagger_ui_parameters={"docExpansion": "none"},
+        swagger_ui_init_oauth={
+            "usePkceWithAuthorizationCodeGrant": True,
+        },
     )
 
     # Настройка CORS

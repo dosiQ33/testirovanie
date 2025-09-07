@@ -5,6 +5,11 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import date, datetime
 
 from app.modules.common.models import BasestModel
+from app.modules.common.encrypted_types import (
+    EncryptedIIN,
+    EncryptedPersonName,
+    EncryptedString,
+)
 
 
 class DicUl(BasestModel):
@@ -45,10 +50,22 @@ class DicFl(BasestModel):
     __table_args__ = dict(schema="admin", comment="Справочник физических лиц")
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
-    iin: Mapped[Optional[str]] = mapped_column(comment="ИИН")
-    surname: Mapped[Optional[str]] = mapped_column(comment="Фамилия")
-    name: Mapped[Optional[str]] = mapped_column(comment="Имя")
-    patronymic: Mapped[Optional[str]] = mapped_column(comment="Отчество")
+
+    # Зашифрованные поля
+    iin: Mapped[Optional[str]] = mapped_column(
+        EncryptedIIN(), comment="ИИН (зашифровано)"
+    )
+    surname: Mapped[Optional[str]] = mapped_column(
+        EncryptedPersonName(), comment="Фамилия (зашифровано)"
+    )
+    name: Mapped[Optional[str]] = mapped_column(
+        EncryptedPersonName(), comment="Имя (зашифровано)"
+    )
+    patronymic: Mapped[Optional[str]] = mapped_column(
+        EncryptedPersonName(), comment="Отчество (зашифровано)"
+    )
+
+    # Остальные поля
     date_of_birth: Mapped[Optional[date]] = mapped_column(comment="Дата рождения")
     email: Mapped[Optional[str]] = mapped_column(Text, comment="Email")
     phone: Mapped[Optional[str]] = mapped_column(comment="Телефон")

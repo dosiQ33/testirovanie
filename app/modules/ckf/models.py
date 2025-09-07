@@ -484,9 +484,9 @@ class KkmsSzpt(BaseModel):
     __tablename__ = "kkms_szpt"
     __table_args__ = dict(schema="public")
 
-    kkms_id: Mapped[int] = mapped_column(ForeignKey("public.kkms.id"), nullable=True)
+    kkms_id: Mapped[int] = mapped_column(ForeignKey("kkms.id"), nullable=True)
     szpt_id: Mapped[int] = mapped_column(
-        ForeignKey("public.dic_szpt_products.id"), nullable=True
+        ForeignKey("dic_szpt_products.id"), nullable=True
     )
     szpt_unit: Mapped[str] = mapped_column(name="szpt_unit", nullable=True)
     szpt_count: Mapped[float] = mapped_column(name="szpt_count", nullable=True)

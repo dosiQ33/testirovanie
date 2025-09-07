@@ -27,6 +27,10 @@ class DicUl(BasestModel):
     kato: Mapped[Optional[str]] = mapped_column(comment="КАТО")
     oblast_id: Mapped[Optional[int]] = mapped_column(BigInteger, comment="ID области")
     raion_id: Mapped[Optional[int]] = mapped_column(BigInteger, comment="ID района")
+    deleted: Mapped[Optional[bool]] = mapped_column(comment="Удален", default=False)
+    blocked: Mapped[Optional[bool]] = mapped_column(
+        comment="Заблокирован", default=False
+    )
     create_date: Mapped[Optional[date]] = mapped_column(
         Date,
         comment="Дата создания",
@@ -65,7 +69,11 @@ class DicFl(BasestModel):
         EncryptedPersonName(), comment="Отчество (зашифровано)"
     )
 
-    # Остальные поля
+    deleted: Mapped[Optional[bool]] = mapped_column(comment="Удален", default=False)
+    blocked: Mapped[Optional[bool]] = mapped_column(
+        comment="Заблокирован", default=False
+    )
+
     date_of_birth: Mapped[Optional[date]] = mapped_column(comment="Дата рождения")
     email: Mapped[Optional[str]] = mapped_column(Text, comment="Email")
     phone: Mapped[Optional[str]] = mapped_column(comment="Телефон")

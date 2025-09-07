@@ -8,9 +8,11 @@ from .models import Employees, DicUl, DicRoles, DicFl
 class DicUlFilter(Filter):
     id: Optional[int] = None
     parent_id: Optional[int] = None
-    bin: Optional[str] = None  # Фильтр по БИН уже есть
+    bin: Optional[str] = None
     shortname: Optional[str] = None
     name: Optional[str] = None
+    deleted: Optional[bool] = None
+    blocked: Optional[bool] = None
 
     class Constants(Filter.Constants):
         model = DicUl
@@ -29,10 +31,12 @@ class DicRolesFilter(Filter):
 
 class DicFlFilter(Filter):
     id: Optional[int] = None
-    iin: Optional[str] = None  # Фильтр по ИИН уже есть
+    iin: Optional[str] = None
     surname: Optional[str] = None
     name: Optional[str] = None
     patronymic: Optional[str] = None
+    deleted: Optional[bool] = None
+    blocked: Optional[bool] = None
 
     class Constants(Filter.Constants):
         model = DicFl

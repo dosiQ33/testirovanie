@@ -17,6 +17,8 @@ class DicUlDto(BasestDto):
     oblast_id: Optional[int] = None
     raion_id: Optional[int] = None
     create_date: Optional[date] = None
+    deleted: Optional[bool] = None
+    blocked: Optional[bool] = None
 
 
 class DicRolesDto(BasestDto):
@@ -36,6 +38,8 @@ class DicFlDto(BasestDto):
     email: Optional[str] = None
     phone: Optional[str] = None
     create_date: Optional[date] = None
+    deleted: Optional[bool] = None
+    blocked: Optional[bool] = None
 
 
 class EmployeesDto(BasestDto):
@@ -67,6 +71,8 @@ class DicUlCreateDto(BasestDto):
     kato: Optional[str] = None
     oblast_id: Optional[int] = None
     raion_id: Optional[int] = None
+    deleted: Optional[bool] = None
+    blocked: Optional[bool] = None
 
 
 class DicRolesCreateDto(BasestDto):
@@ -83,6 +89,8 @@ class DicFlCreateDto(BasestDto):
     date_of_birth: Optional[date] = None
     email: Optional[str] = None
     phone: Optional[str] = None
+    deleted: Optional[bool] = None
+    blocked: Optional[bool] = None
 
 
 class EmployeesCreateDto(BasestDto):
@@ -112,6 +120,8 @@ class DicFlUpdateDto(BasestDto):
     date_of_birth: Optional[date] = None
     email: Optional[str] = None
     phone: Optional[str] = None
+    deleted: Optional[bool] = None
+    blocked: Optional[bool] = None
 
 
 class DicUlUpdateDto(BasestDto):
@@ -123,6 +133,8 @@ class DicUlUpdateDto(BasestDto):
     kato: Optional[str] = None
     oblast_id: Optional[int] = None
     raion_id: Optional[int] = None
+    deleted: Optional[bool] = None
+    blocked: Optional[bool] = None
 
 
 class EmployeesUpdateDto(BasestDto):

@@ -7,7 +7,7 @@ from app.modules.auth.utils import verify_password, set_employee_tokens
 from app.modules.admins.repository import EmployeesRepo
 from app.modules.admins.dtos import EmployeeLoginDto, EmployeeInfoDto
 from app.modules.admins.models import Employees
-from app.modules.admins.deps import get_current_employee_bearer
+from app.modules.admins.deps import get_current_employee
 
 router = APIRouter(tags=["admin panel:"])
 
@@ -59,7 +59,7 @@ async def login_employee(
 
 @router.get("/test-protected")
 async def test_protected_endpoint(
-    current_employee: Employees = Depends(get_current_employee_bearer),
+    current_employee: Employees = Depends(get_current_employee),
 ) -> dict:
     """Тестовый защищенный эндпоинт для проверки Bearer авторизации"""
     return {

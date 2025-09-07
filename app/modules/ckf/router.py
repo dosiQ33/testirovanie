@@ -6,6 +6,7 @@ Author: RaiMX
 Copyright (c) 2025 RaiMX
 """
 
+from app.modules.admins.models import Employees
 from fastapi import APIRouter, HTTPException, Query, status
 from typing import Annotated, List
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,6 +14,7 @@ from fastapi import Depends
 from datetime import datetime
 from loguru import logger
 from fastapi_cache.decorator import cache
+from geoalchemy2.elements import WKTElement
 
 from math import ceil
 
@@ -24,9 +26,14 @@ from app.modules.common.dto import (
     ByYearAndRegionsFilterDto,
     CountByYearAndRegionsDto,
     TerritoryFilterDto,
-    
+)
+from app.modules.common.territory_deps import (
+    get_user_territory_info,
+    get_user_territory_geom,
+    UserTerritoryInfo,
 )
 from app.modules.common.enums import RegionEnum
+from app.modules.admins.deps import get_current_employee
 from app.modules.common.router import (
     BaseCRUDRouter,
     ORJsonCoder,
@@ -206,9 +213,13 @@ class OrganizationsRouter(APIRouter):
         session: AsyncSession = Depends(get_session_with_commit),
     ):
         esf_seller = await EsfSellerRepo(session).get_by_organization_id(id)
-        esf_seller_daily = await EsfSellerDailyRepo(session).get_sum_by_organization_id(id)
+        esf_seller_daily = await EsfSellerDailyRepo(session).get_sum_by_organization_id(
+            id
+        )
         esf_buyer = await EsfBuyerRepo(session).get_by_organization_id(id)
-        esf_buyer_daily = await EsfBuyerDailyRepo(session).get_sum_by_organization_id(id)
+        esf_buyer_daily = await EsfBuyerDailyRepo(session).get_sum_by_organization_id(
+            id
+        )
 
         return {
             "esf_seller": (
@@ -371,6 +382,104 @@ class OrganizationsRouter(APIRouter):
         )
 
         return {"info": response}
+
+    @sub_router.get(
+        "/secure-filter",
+        summary="Защищенный фильтр организаций с территориальным ограничением",
+    )
+    async def secure_filter_organizations(
+        filters: Annotated[OrganizationsFilterDto, Query()],
+        current_employee: Employees = Depends(get_current_employee),
+        territory_info: UserTerritoryInfo = Depends(get_user_territory_info),
+        user_territory_geom: WKTElement = Depends(get_user_territory_geom),
+        session: AsyncSession = Depends(get_session_without_commit),
+    ) -> List[OrganizationDto]:
+        """
+        Получить организации с учетом территориальных прав доступа пользователя.
+
+        Пользователь может видеть только организации в пределах своей территории:
+        - Республиканский администратор: все организации РК
+        - Областной сотрудник: только организации своей области
+        - Районный сотрудник: только организации своего района
+
+        **Дополнительные фильтры могут только сузить область поиска в рамках доступной территории.**
+
+        - **territory**: дополнительный WKT полигон для фильтрации (должен быть в пределах доступной территории)
+        - **iin_bin**: ИИН/БИН организации
+        - **oked_ids**: список кодов ОКЭД
+        - **risk_degree_ids**: список степеней риска
+        """
+        try:
+            # Логируем информацию о пользователе
+            logger.info(
+                f"Запрос организаций от пользователя {current_employee.login} "
+                f"({territory_info.territory_level}: {territory_info.territory_name})"
+            )
+
+            # Если пользователь указал дополнительную территорию для фильтрации
+            if filters.territory and user_territory_geom is not None:
+                # Проверяем имеет ли пользователь право на эту территорию
+                repo = OrganizationsRepo(session)
+                has_access = await repo.validate_user_territory_access(
+                    filters.territory, user_territory_geom
+                )
+
+                if not has_access:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail=f"Нет доступа к указанной территории. "
+                        f"Доступ ограничен: {territory_info.territory_name}",
+                    )
+
+            # Получаем организации с применением территориального ограничения
+            repo = OrganizationsRepo(session)
+            organizations = await repo.filter_with_territory(
+                filters=filters, user_territory_geom=user_territory_geom
+            )
+
+            # Логируем результат
+            logger.info(
+                f"Возвращено {len(organizations)} организаций "
+                f"для пользователя {current_employee.login}"
+            )
+
+            return [OrganizationDto.model_validate(item) for item in organizations]
+
+        except HTTPException:
+            # Перепрокидываем HTTP исключения как есть
+            raise
+        except Exception as e:
+            logger.error(
+                f"Ошибка при получении организаций для пользователя {current_employee.login}: {e}"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Внутренняя ошибка сервера при получении данных",
+            )
+
+    @sub_router.get(
+        "/my-territory-info", summary="Информация о территориальных правах доступа"
+    )
+    async def get_my_territory_info(
+        current_employee: Employees = Depends(get_current_employee),
+        territory_info: UserTerritoryInfo = Depends(get_user_territory_info),
+    ) -> dict:
+        """
+        Получить информацию о территориальных правах доступа текущего пользователя
+        """
+        return {
+            "employee_login": current_employee.login,
+            "employee_position": current_employee.employee_position,
+            "territory_level": territory_info.territory_level,
+            "territory_name": territory_info.territory_name,
+            "territory_id": territory_info.territory_id,
+            "has_republic_access": territory_info.is_republic_level(),
+            "description": {
+                "republic": "Доступ ко всем данным Республики Казахстан",
+                "oblast": f"Доступ только к данным {territory_info.territory_name}",
+                "raion": f"Доступ только к данным {territory_info.territory_name}",
+            }.get(territory_info.territory_level, "Неопределенный уровень доступа"),
+        }
 
 
 class KkmsRouter(APIRouter):
@@ -553,7 +662,7 @@ class KkmsRouter(APIRouter):
     ):
         response = await KkmsRepo(session).get_kkm_info_by_building(filters)
         return response
-    
+
     @sub_router.get("/active-kkms/{id}")
     @cache(expire=cache_ttl, key_builder=request_key_builder)
     async def get_kkm_info_by_building(
@@ -562,6 +671,7 @@ class KkmsRouter(APIRouter):
     ):
         response = await KkmsRepo(session).get_active_kkms_count(id)
         return response
+
 
 class FnoStatisticsRouter(APIRouter):
     sub_router = APIRouter(prefix="/fno-statistics", tags=["ckf: fno-statistics"])
@@ -908,7 +1018,7 @@ class ReceiptsRouter(APIRouter):
         return [ReceiptsDto.model_validate(item) for item in response]
 
     @sub_router.get("/latest-with-details")
-    #@cache(expire=cache_ttl, key_builder=request_key_builder)
+    # @cache(expire=cache_ttl, key_builder=request_key_builder)
     async def get_latest_receipts_with_details(
         limit: int = Query(
             100, ge=1, le=1000, description="Количество записей (от 1 до 1000)"
@@ -1014,7 +1124,7 @@ class SzptRouter(APIRouter):
             percent=percent,
             overcharge=overcharge,
         )
-    
+
     @sub_router.get("/by-year-regions")
     @cache(expire=cache_ttl, key_builder=request_key_builder)
     async def get_receipt_content(

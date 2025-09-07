@@ -26,6 +26,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.exc import SQLAlchemyError
 from geoalchemy2.functions import ST_Within
+from geoalchemy2.elements import WKTElement
 
 from loguru import logger
 from collections import defaultdict
@@ -327,6 +328,123 @@ class OrganizationsRepo(BaseRepository):
         except SQLAlchemyError as e:
             logger.error(f"Ошибка при : {e}")
             raise
+
+    async def filter_with_territory(
+        self,
+        filters: OrganizationsFilterDto,
+        user_territory_geom: Optional["WKTElement"] = None,
+    ):
+        """
+        Фильтрация организаций с учетом территориальных ограничений пользователя
+
+        Args:
+            filters: Стандартные фильтры для организаций
+            user_territory_geom: Геометрия территории доступа пользователя (None = республиканский доступ)
+        """
+        try:
+            query = select(self.model)
+
+            # 1. ПРИМЕНЯЕМ ТЕРРИТОРИАЛЬНОЕ ОГРАНИЧЕНИЕ ПОЛЬЗОВАТЕЛЯ ПЕРВЫМ
+            if user_territory_geom is not None:
+                logger.info("Применяется территориальное ограничение пользователя")
+                query = query.filter(
+                    func.ST_Intersects(Organizations.shape, user_territory_geom)
+                )
+            else:
+                logger.info(
+                    "Пользователь имеет республиканский доступ - территориальное ограничение не применяется"
+                )
+
+            # 2. ДОПОЛНИТЕЛЬНЫЕ ФИЛЬТРЫ ОТ ПОЛЬЗОВАТЕЛЯ
+            # Фильтр по territory от пользователя может только СУЗИТЬ область поиска
+            if filters.territory is not None:
+                if user_territory_geom is not None:
+                    # Если у пользователя есть территориальное ограничение,
+                    # проверяем что указанная им territory пересекается с его зоной доступа
+                    user_territory_filter = filters.territory
+                    query = query.filter(
+                        Organizations.shape.ST_Intersects(
+                            "SRID=4326;" + user_territory_filter
+                        )
+                    )
+                    logger.info(
+                        "Применен дополнительный территориальный фильтр от пользователя"
+                    )
+                else:
+                    # Республиканский доступ - можем фильтровать по любой территории
+                    query = query.filter(
+                        Organizations.shape.ST_Intersects(
+                            "SRID=4326;" + filters.territory
+                        )
+                    )
+
+            # 3. ОСТАЛЬНЫЕ ФИЛЬТРЫ
+            if filters.iin_bin is not None:
+                query = query.filter(Organizations.iin_bin == filters.iin_bin)
+
+            if filters.oked_ids is not None:
+                query = query.filter(Organizations.oked_id.in_(filters.oked_ids))
+
+            if filters.risk_degree_ids is not None:
+                query = query.join(RiskInfos).filter(
+                    RiskInfos.risk_degree_id.in_(filters.risk_degree_ids)
+                )
+
+            # Выполняем запрос
+            result = await self._session.execute(query)
+            records = result.unique().scalars().all()
+
+            logger.info(
+                f"Найдено {len(records)} организаций с территориальным ограничением"
+            )
+
+            return records
+
+        except SQLAlchemyError as e:
+            logger.error(
+                f"Ошибка при поиске организаций с территориальным ограничением: {e}"
+            )
+            raise
+
+    async def validate_user_territory_access(
+        self, requested_territory: str, user_territory_geom: Optional["WKTElement"]
+    ) -> bool:
+        """
+        Проверить имеет ли пользователь доступ к запрашиваемой территории
+
+        Args:
+            requested_territory: WKT строка территории которую запрашивает пользователь
+            user_territory_geom: Геометрия территории доступа пользователя
+
+        Returns:
+            True если доступ разрешен, False если запрещен
+        """
+        if user_territory_geom is None:
+            # Республиканский доступ - можно все
+            return True
+
+        try:
+            # Проверяем что запрашиваемая территория полностью содержится
+            # в зоне доступа пользователя
+            query = select(
+                func.ST_Contains(
+                    user_territory_geom, func.ST_GeomFromText(requested_territory, 4326)
+                )
+            )
+
+            result = await self._session.execute(query)
+            is_contained = result.scalar()
+
+            logger.info(
+                f"Проверка доступа к территории: {'разрешено' if is_contained else 'запрещено'}"
+            )
+
+            return bool(is_contained)
+
+        except SQLAlchemyError as e:
+            logger.error(f"Ошибка при проверке доступа к территории: {e}")
+            # В случае ошибки запрещаем доступ
+            return False
 
 
 class KkmsRepo(BaseRepository):
@@ -1453,20 +1571,18 @@ class SzptRepo(BaseRepository):
 
             if filters.szpt_id:
                 clean_count_val = cast(
-                    func.nullif(cast(KkmsSzpt.szpt_count, Text), 'NaN'),
-                    Numeric
+                    func.nullif(cast(KkmsSzpt.szpt_count, Text), "NaN"), Numeric
                 )
-                
+
                 szpt_count_col = cast(
-                    func.round(func.sum(clean_count_val), 2),
-                    Numeric
+                    func.round(func.sum(clean_count_val), 2), Numeric
                 ).label("szpt_count")
 
                 query = (
                     query.add_columns(szpt_count_col, DicSzpt.unit)
-                        .join(DicSzpt, KkmsSzpt.szpt_id == DicSzpt.id)
-                        .where(KkmsSzpt.szpt_id == filters.szpt_id)
-                        .group_by(DicSzpt.unit)
+                    .join(DicSzpt, KkmsSzpt.szpt_id == DicSzpt.id)
+                    .where(KkmsSzpt.szpt_id == filters.szpt_id)
+                    .group_by(DicSzpt.unit)
                 )
 
             result = await self._session.execute(query)
@@ -1495,18 +1611,15 @@ class SzptRepo(BaseRepository):
 
             if filters.szpt_id:
                 clean_count_val = cast(
-                    func.nullif(cast(KkmsSzpt.szpt_count, Text), 'NaN'),
-                    Numeric
+                    func.nullif(cast(KkmsSzpt.szpt_count, Text), "NaN"), Numeric
                 )
-                
+
                 szpt_count_col = cast(
-                    func.round(func.sum(clean_count_val), 2),
-                    Numeric
+                    func.round(func.sum(clean_count_val), 2), Numeric
                 ).label("szpt_count")
 
-                query = (
-                    query.add_columns(szpt_count_col)
-                        .where(KkmsSzpt.szpt_id == filters.szpt_id)
+                query = query.add_columns(szpt_count_col).where(
+                    KkmsSzpt.szpt_id == filters.szpt_id
                 )
 
             if filters.region != RegionEnum.rk:

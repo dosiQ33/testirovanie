@@ -18,9 +18,8 @@ class DataEncryption:
     def _init_encryption(self):
         """Инициализация шифрования"""
         try:
-            # Используем SECRET_KEY из настроек для генерации ключа шифрования
             password = settings.SECRET_KEY.encode()
-            salt = b"coc_personal_data_salt"  # Фиксированная соль для стабильности
+            salt = b"coc_personal_data_salt"
 
             kdf = PBKDF2HMAC(
                 algorithm=hashes.SHA256(),
@@ -53,7 +52,7 @@ class DataEncryption:
             return base64.urlsafe_b64encode(encrypted_data).decode("utf-8")
         except Exception as e:
             logger.error(f"Ошибка шифрования данных: {e}")
-            return data  # Возвращаем оригинал в случае ошибки
+            return data
 
     def decrypt(self, encrypted_data: Optional[str]) -> Optional[str]:
         """
@@ -69,9 +68,7 @@ class DataEncryption:
             return encrypted_data
 
         try:
-            # Проверяем, похоже ли на зашифрованные данные
             if not self._is_encrypted_format(encrypted_data):
-                # Если данные не в зашифрованном формате, возвращаем как есть
                 return encrypted_data
 
             decoded_data = base64.urlsafe_b64decode(encrypted_data.encode("utf-8"))
@@ -81,7 +78,7 @@ class DataEncryption:
             logger.warning(
                 f"Ошибка расшифровки данных (возможно, данные не зашифрованы): {e}"
             )
-            return encrypted_data  # Возвращаем оригинал в случае ошибки
+            return encrypted_data
 
     def _is_encrypted_format(self, data: str) -> bool:
         """
@@ -94,15 +91,12 @@ class DataEncryption:
             True если похоже на зашифрованные данные
         """
         try:
-            # Попробуем декодировать base64
             decoded = base64.urlsafe_b64decode(data.encode("utf-8"))
-            # Зашифрованные данные Fernet должны быть определенной длины
-            return len(decoded) > 40  # Минимальная длина для Fernet токена
+            return len(decoded) > 40
         except:
             return False
 
 
-# Создаем глобальный экземпляр
 data_encryption = DataEncryption()
 
 

@@ -1,7 +1,3 @@
-"""
-Кастомные типы SQLAlchemy для автоматического шифрования/расшифровки данных
-"""
-
 from typing import Optional, Any
 from sqlalchemy import TypeDecorator, String
 from sqlalchemy.engine import Dialect
@@ -15,7 +11,7 @@ class EncryptedString(TypeDecorator):
     """
 
     impl = String
-    cache_ok = True  # Разрешаем кэширование типа
+    cache_ok = True
 
     def __init__(self, length: Optional[int] = None, **kwargs):
         """
@@ -24,14 +20,12 @@ class EncryptedString(TypeDecorator):
         Args:
             length: Максимальная длина поля (рекомендуется увеличить для зашифрованных данных)
         """
-        # Увеличиваем длину поля для зашифрованных данных
-        # Зашифрованные данные обычно в 2-3 раза длиннее оригинала
         if length:
             self.target_length = length
             actual_length = length * 3
         else:
             self.target_length = None
-            actual_length = 500  # Значение по умолчанию для зашифрованных данных
+            actual_length = 500
 
         super().__init__(length=actual_length, **kwargs)
 
@@ -82,7 +76,6 @@ class EncryptedIIN(EncryptedString):
     cache_ok = True
 
     def __init__(self, **kwargs):
-        # ИИН состоит из 12 цифр, но зашифрованный будет намного длиннее
         super().__init__(length=12, **kwargs)
 
     def copy(self, **kw: Any) -> "EncryptedIIN":
@@ -96,10 +89,8 @@ class EncryptedIIN(EncryptedString):
         Обработка ИИН при записи с дополнительной валидацией
         """
         if value is not None:
-            # Можно добавить дополнительную валидацию ИИН здесь
             value = value.strip()
             if len(value) != 12 or not value.isdigit():
-                # Логируем предупреждение, но не блокируем операцию
                 from loguru import logger
 
                 logger.warning(f"Некорректный формат ИИН: {len(value)} символов")
@@ -115,7 +106,6 @@ class EncryptedPersonName(EncryptedString):
     cache_ok = True
 
     def __init__(self, **kwargs):
-        # Имена обычно не превышают 50 символов
         super().__init__(length=50, **kwargs)
 
     def copy(self, **kw: Any) -> "EncryptedPersonName":
@@ -129,9 +119,8 @@ class EncryptedPersonName(EncryptedString):
         Обработка имен при записи с нормализацией
         """
         if value is not None:
-            # Нормализуем имя: убираем лишние пробелы, приводим к правильному регистру
             value = value.strip()
             if value:
-                value = value.title()  # Первая буква заглавная
+                value = value.title()
 
         return super().process_bind_param(value, dialect)

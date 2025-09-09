@@ -410,15 +410,12 @@ class OrganizationsRouter(APIRouter):
         - **risk_degree_ids**: список степеней риска
         """
         try:
-            # Логируем информацию о пользователе
             logger.info(
                 f"Запрос организаций от пользователя {current_employee.login} "
                 f"({territory_info.territory_level}: {territory_info.territory_name})"
             )
 
-            # Если пользователь указал дополнительную территорию для фильтрации
             if filters.territory and user_territory_geom is not None:
-                # Проверяем имеет ли пользователь право на эту территорию
                 repo = OrganizationsRepo(session)
                 has_access = await repo.validate_user_territory_access(
                     filters.territory, user_territory_geom
@@ -431,13 +428,11 @@ class OrganizationsRouter(APIRouter):
                         f"Доступ ограничен: {territory_info.territory_name}",
                     )
 
-            # Получаем организации с применением территориального ограничения
             repo = OrganizationsRepo(session)
             organizations = await repo.filter_with_territory(
                 filters=filters, user_territory_geom=user_territory_geom
             )
 
-            # Логируем результат
             logger.info(
                 f"Возвращено {len(organizations)} организаций "
                 f"для пользователя {current_employee.login}"
@@ -446,7 +441,6 @@ class OrganizationsRouter(APIRouter):
             return [OrganizationDto.model_validate(item) for item in organizations]
 
         except HTTPException:
-            # Перепрокидываем HTTP исключения как есть
             raise
         except Exception as e:
             logger.error(

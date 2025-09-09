@@ -5,11 +5,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import date, datetime
 
 from app.modules.common.models import BasestModel
-from app.modules.common.encrypted_types import (
-    EncryptedIIN,
-    EncryptedPersonName,
-    EncryptedString,
-)
+from app.modules.common.encrypted_types import EncryptedIIN, EncryptedPersonName
 
 
 class DicUl(BasestModel):
@@ -55,7 +51,6 @@ class DicFl(BasestModel):
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
 
-    # Зашифрованные поля
     iin: Mapped[Optional[str]] = mapped_column(
         EncryptedIIN(), comment="ИИН (зашифровано)"
     )

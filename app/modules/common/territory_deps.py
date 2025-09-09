@@ -1,9 +1,3 @@
-"""
-Territory dependency для получения территориальных ограничений пользователя
-ИСПРАВЛЕНО: правильная обработка геометрии из PostGIS
-Путь: app/modules/common/territory_deps.py
-"""
-
 from typing import Optional
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -28,7 +22,7 @@ class UserTerritoryInfo:
         territory_name: str,
         territory_geom: Optional[WKTElement] = None,
     ):
-        self.territory_level = territory_level  # 'republic', 'oblast', 'raion'
+        self.territory_level = territory_level
         self.territory_id = territory_id
         self.territory_name = territory_name
         self.territory_geom = territory_geom
@@ -48,8 +42,7 @@ async def get_user_territory_info(
     Получить территориальную информацию текущего пользователя
     """
     try:
-        # Проверяем является ли пользователь администратором республиканского уровня
-        if current_employee.role == 3:  # Администратор
+        if current_employee.role == 3:
             logger.info(
                 f"Пользователь {current_employee.login} имеет республиканский доступ"
             )
@@ -59,14 +52,12 @@ async def get_user_territory_info(
                 territory_name="Республика Казахстан",
             )
 
-        # Получаем информацию о юридическом лице сотрудника
         if not current_employee.ul_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Сотрудник не привязан к территориальному подразделению",
             )
 
-        # Получаем информацию об организации сотрудника
         query = select(DicUl).where(DicUl.id == current_employee.ul_id)
         result = await session.execute(query)
         dic_ul = result.scalar_one_or_none()
@@ -79,9 +70,7 @@ async def get_user_territory_info(
 
         territory_info = None
 
-        # Определяем уровень доступа: область или район
         if dic_ul.oblast_id and not dic_ul.raion_id:
-            # Областной уровень - получаем геометрию области в WKT формате
             query = select(
                 KazgeodesyRkOblasti.id,
                 KazgeodesyRkOblasti.name_ru,
@@ -107,7 +96,6 @@ async def get_user_territory_info(
                 )
 
         elif dic_ul.raion_id:
-            # Районный уровень - получаем геометрию района в WKT формате
             query = select(
                 KazgeodesyRkRaiony.id,
                 KazgeodesyRkRaiony.name_ru,
@@ -143,7 +131,6 @@ async def get_user_territory_info(
         return territory_info
 
     except HTTPException:
-        # Перепрокидываем HTTP исключения как есть
         raise
     except Exception as e:
         logger.error(f"Ошибка при получении территориальной информации: {e}")

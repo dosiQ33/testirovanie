@@ -344,7 +344,6 @@ class OrganizationsRepo(BaseRepository):
         try:
             query = select(self.model)
 
-            # 1. ПРИМЕНЯЕМ ТЕРРИТОРИАЛЬНОЕ ОГРАНИЧЕНИЕ ПОЛЬЗОВАТЕЛЯ ПЕРВЫМ
             if user_territory_geom is not None:
                 logger.info("Применяется территориальное ограничение пользователя")
                 query = query.filter(
@@ -355,12 +354,8 @@ class OrganizationsRepo(BaseRepository):
                     "Пользователь имеет республиканский доступ - территориальное ограничение не применяется"
                 )
 
-            # 2. ДОПОЛНИТЕЛЬНЫЕ ФИЛЬТРЫ ОТ ПОЛЬЗОВАТЕЛЯ
-            # Фильтр по territory от пользователя может только СУЗИТЬ область поиска
             if filters.territory is not None:
                 if user_territory_geom is not None:
-                    # Если у пользователя есть территориальное ограничение,
-                    # проверяем что указанная им territory пересекается с его зоной доступа
                     user_territory_filter = filters.territory
                     query = query.filter(
                         Organizations.shape.ST_Intersects(
@@ -371,14 +366,12 @@ class OrganizationsRepo(BaseRepository):
                         "Применен дополнительный территориальный фильтр от пользователя"
                     )
                 else:
-                    # Республиканский доступ - можем фильтровать по любой территории
                     query = query.filter(
                         Organizations.shape.ST_Intersects(
                             "SRID=4326;" + filters.territory
                         )
                     )
 
-            # 3. ОСТАЛЬНЫЕ ФИЛЬТРЫ
             if filters.iin_bin is not None:
                 query = query.filter(Organizations.iin_bin == filters.iin_bin)
 
@@ -390,7 +383,6 @@ class OrganizationsRepo(BaseRepository):
                     RiskInfos.risk_degree_id.in_(filters.risk_degree_ids)
                 )
 
-            # Выполняем запрос
             result = await self._session.execute(query)
             records = result.unique().scalars().all()
 
@@ -420,12 +412,9 @@ class OrganizationsRepo(BaseRepository):
             True если доступ разрешен, False если запрещен
         """
         if user_territory_geom is None:
-            # Республиканский доступ - можно все
             return True
 
         try:
-            # Проверяем что запрашиваемая территория полностью содержится
-            # в зоне доступа пользователя
             query = select(
                 func.ST_Contains(
                     user_territory_geom, func.ST_GeomFromText(requested_territory, 4326)
@@ -443,7 +432,6 @@ class OrganizationsRepo(BaseRepository):
 
         except SQLAlchemyError as e:
             logger.error(f"Ошибка при проверке доступа к территории: {e}")
-            # В случае ошибки запрещаем доступ
             return False
 
 

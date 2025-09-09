@@ -20,3 +20,20 @@ class VehiclesDto(DtoWithShape):
     registration_date: date
     is_active: bool
     has_customs_booking: bool
+
+class TransportCompaniesDto(BasestDto):
+    id: int
+    is_international: bool
+    bin: Optional[str] 
+    organization_id: Optional[int] 
+    name: str 
+    vat_number: Optional[str] 
+    country_id: int 
+    registration_number: str 
+    address: str 
+    phone: str 
+    email: Optional[str] 
+    contact_person: Optional[str] 
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime

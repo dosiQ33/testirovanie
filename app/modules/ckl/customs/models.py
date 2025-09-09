@@ -210,6 +210,9 @@ class CustomsOffices(BaseModel):
     type_id: Mapped[int | None] = mapped_column(
         ForeignKey("ckl.customs_office_types.id"), comment="Тип таможенного органа", nullable=True
     )
+    road_id: Mapped[int] = mapped_column(
+        ForeignKey("ckl.roads.id"), comment="Идентификатор дороги", nullable=False
+    )
     address: Mapped[str | None] = mapped_column(name="address", comment="Адрес местонахождения", nullable=True)
     rca_code: Mapped[str] = mapped_column(name="rca_code", comment="Код РКА", nullable=False)
     is_border_point: Mapped[bool | None] = mapped_column(name="is_border_point", comment="Приграничный пункт", nullable=True)

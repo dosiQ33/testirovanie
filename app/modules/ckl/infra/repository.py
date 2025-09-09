@@ -1,6 +1,9 @@
 from sqlalchemy import select, func
 
 from app.modules.common.repository import BaseRepository
+
+from ..customs.models import CustomsOffices
+
 from .models import (
     Roads,
     RoadTypes,
@@ -49,10 +52,19 @@ class RoadsRepo(BaseRepository):
             .where(Cameras.roads_id == road_id)
         )
 
+        query_customs_offices = (
+            select(
+                func.count().label('customs_offices_count')
+            )
+            .select_from(CustomsOffices)
+            .where(CustomsOffices.road_id == road_id)
+        )
+
         vehicles = await self._session.execute(query_vehicles)
         cameras = await self._session.execute(query_cameras)
+        customs_offices = await self._session.execute(query_customs_offices)
 
-        response = {'vehicles_count': vehicles.scalar(), 'cameras_count': cameras.scalar()}
+        response = {'vehicles_count': vehicles.scalar(), 'cameras_count': cameras.scalar(), 'customs_offices_count': customs_offices.scalar()}
 
         return response
 

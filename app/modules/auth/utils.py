@@ -6,10 +6,8 @@ from app.config import settings
 
 
 def create_tokens(data: dict) -> dict:
-    # Текущее время в UTC
     now = datetime.now(timezone.utc)
 
-    # AccessToken - 1 день
     access_expire = now + timedelta(days=1)
     access_payload = data.copy()
     access_payload.update({"exp": int(access_expire.timestamp()), "type": "access"})
@@ -17,7 +15,6 @@ def create_tokens(data: dict) -> dict:
         access_payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM
     )
 
-    # RefreshToken - 7 дней
     refresh_expire = now + timedelta(days=7)
     refresh_payload = data.copy()
     refresh_payload.update({"exp": int(refresh_expire.timestamp()), "type": "refresh"})

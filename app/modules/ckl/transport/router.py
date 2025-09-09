@@ -9,11 +9,22 @@ from app.database.deps import get_session_with_commit
 from app.modules.common.router import request_key_builder, cache_ttl
 from app.modules.common.router import BaseCRUDRouter
 
-from .models import Vehicles
+from app.modules.common.router import ORJsonCoder
 
-from .dtos import VehiclesDto
+from .models import (
+    Vehicles,
+    TransportCompanies
+)
 
-from .repository import VehiclesRepo
+from .dtos import (
+    VehiclesDto,
+    TransportCompaniesDto
+)
+
+from .repository import (
+    VehiclesRepo,
+    TransportCompaniesRepo
+)
 
 router = APIRouter(prefix="/transport")
 
@@ -30,7 +41,7 @@ class VehiclesRouter(APIRouter):
         self.include_router(self.sub_router)
         self.include_router(self.base_router)
 
-    @sub_router.get("/info/{vehicle_id}", summary="Фильтр по полям")
+    @sub_router.get("/info/{vehicle_id}")
     @cache(expire=cache_ttl, key_builder=request_key_builder)
     async def get_vehicle_info(
         vehicle_id: int, session: AsyncSession = Depends(get_session_with_commit)
@@ -38,6 +49,46 @@ class VehiclesRouter(APIRouter):
         response = await VehiclesRepo(session).get_vehicle_info(vehicle_id)
 
         return response
+    
+class TransportCompaniesRouter(APIRouter):
+    sub_router = APIRouter(prefix="/trasnport-companies", tags=["ckl: transport companies"])
+    base_router = BaseCRUDRouter(
+        "trasnport-companies", TransportCompanies, TransportCompaniesRepo, TransportCompaniesDto, tags=["ckl: transport companies"]
+    )
+
+    def __init__(self):
+        super().__init__()
+
+        self.include_router(self.sub_router)
+        self.include_router(self.base_router)
+
+    @sub_router.get("/info/{company_id}")
+    @cache(expire=cache_ttl, key_builder=request_key_builder)
+    async def get_transport_company_info(
+        company_id: int, session: AsyncSession = Depends(get_session_with_commit)
+    ):
+        response = await TransportCompaniesRepo(session).get_base_info(company_id)
+
+        return response
+    
+    @sub_router.get("/count/{company_id}")
+    @cache(expire=cache_ttl, key_builder=request_key_builder)
+    async def get_transport_count(
+        company_id: int, session: AsyncSession = Depends(get_session_with_commit)
+    ):
+        response = await TransportCompaniesRepo(session).get_transport_info(company_id)
+
+        return response
+    
+    @sub_router.get("/info")
+    @cache(expire=cache_ttl, key_builder=request_key_builder)
+    async def get_all_transport_companies(
+        session: AsyncSession = Depends(get_session_with_commit)
+    ):
+        response = await TransportCompaniesRepo(session).get_all_transport_comapnies()
+
+        return response
 
 
 router.include_router(VehiclesRouter())
+router.include_router(TransportCompaniesRouter())

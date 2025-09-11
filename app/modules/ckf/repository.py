@@ -70,6 +70,7 @@ from .models import (
     DicSzpt,
     ReceiptsMonthly,
     KkmsSzpt,
+    GtinStat,
 )
 from typing import Optional
 from datetime import date
@@ -1334,6 +1335,10 @@ class ReceiptsRepo(BaseWithKkmRepository):
                 .filter(ReceiptsAnnual.year == current_year)
             )
 
+            gtin_stats_subq = select(
+                func.coalesce(func.sum(GtinStat.gtin_count), 0).label("gtin_count")
+            ).select_from(GtinStat)
+
             # Применяем территориальную фильтрацию если территория указана
             if territory_wkt:
                 active_kkm_subq = active_kkm_subq.join(
@@ -1360,12 +1365,16 @@ class ReceiptsRepo(BaseWithKkmRepository):
             yearly_result = await self._session.execute(yearly_stats_subq)
             yearly_row = yearly_result.one()
 
+            gtin_result = await self._session.execute(gtin_stats_subq)
+            gtin_count = gtin_result.scalar() or 0
+
             return {
                 "active_kkm_count": active_count,
                 "daily_turnover": float(daily_row.daily_turnover),
                 "daily_receipts_count": int(daily_row.daily_receipts_count),
                 "yearly_turnover": float(yearly_row.yearly_turnover),
                 "yearly_receipts_count": int(yearly_row.yearly_receipts_count),
+                "gtin_count": int(gtin_count),
             }
 
         except SQLAlchemyError as e:

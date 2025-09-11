@@ -331,6 +331,7 @@ class KkmAggregatedStatisticsResponseDto(BasestDto):
     daily_receipts_count: int
     yearly_turnover: float
     yearly_receipts_count: int
+    gtin_count: int
 
 
 class KkmAggregatedByBuildingResponseDto(BasestDto):

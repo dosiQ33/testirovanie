@@ -492,3 +492,12 @@ class KkmsSzpt(BaseModel):
     szpt_count: Mapped[float] = mapped_column(name="szpt_count", nullable=True)
     szpt_sum: Mapped[float] = mapped_column(name="szpt_sum", nullable=True)
     month: Mapped[date] = mapped_column(name="month", nullable=True)
+
+
+class GtinStat(BasestModel):
+    __tablename__ = "gtin_stat"
+    __table_args__ = dict(comment="Статистика GTIN")
+
+    gtin_count: Mapped[int] = mapped_column(
+        Integer, primary_key=True, comment="Количество GTIN"
+    )

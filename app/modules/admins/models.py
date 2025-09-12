@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import Optional
+from app.modules.ext.kazgeodesy.models import KazgeodesyRkOblasti, KazgeodesyRkRaiony
 from sqlalchemy import ForeignKey, BigInteger, Integer, Text, func, Date
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import date, datetime
@@ -32,6 +33,20 @@ class DicUl(BasestModel):
         comment="Дата создания",
         server_default=func.current_date(),
         default=func.current_date(),
+    )
+
+    # Relationships
+    oblast: Mapped[Optional["KazgeodesyRkOblasti"]] = relationship(
+        "KazgeodesyRkOblasti",
+        lazy="selectin",
+        foreign_keys=[oblast_id],
+        primaryjoin="DicUl.oblast_id == KazgeodesyRkOblasti.id",
+    )
+    raion: Mapped[Optional["KazgeodesyRkRaiony"]] = relationship(
+        "KazgeodesyRkRaiony",
+        lazy="selectin",
+        foreign_keys=[raion_id],
+        primaryjoin="DicUl.raion_id == KazgeodesyRkRaiony.id",
     )
 
 

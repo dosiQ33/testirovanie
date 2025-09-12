@@ -6,6 +6,15 @@ from pydantic import model_validator
 from app.modules.auth.utils import get_password_hash
 
 
+class TerritoryDto(BasestDto):
+    id: int
+    parent_id: Optional[int] = None
+    type: Optional[str] = None
+    name_ru: Optional[str] = None
+    kato: Optional[str] = None
+    parentkato: Optional[str] = None
+
+
 class DicUlDto(BasestDto):
     id: int
     parent_id: Optional[int] = None
@@ -19,6 +28,9 @@ class DicUlDto(BasestDto):
     create_date: Optional[date] = None
     deleted: Optional[bool] = None
     blocked: Optional[bool] = None
+
+    oblast: Optional[TerritoryDto] = None
+    raion: Optional[TerritoryDto] = None
 
 
 class DicRolesDto(BasestDto):

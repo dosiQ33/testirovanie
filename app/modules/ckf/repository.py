@@ -75,6 +75,7 @@ from .models import (
 )
 from typing import Optional
 from datetime import date
+from geoalchemy2.functions import ST_MakeEnvelope
 
 
 class OrganizationsRepo(BaseRepository):
@@ -84,34 +85,20 @@ class OrganizationsRepo(BaseRepository):
         # 71.389166,51.117415,71.390796,51.118253
 
         try:
-            query = text(
-                f"SELECT id, iin_bin, name_ru, address, shape FROM {self.model.__tablename__} WHERE shape && ST_MakeEnvelope(:minx, :miny, :maxx, :maxy, :srid);"
-            ).bindparams(
-                minx=dto.bbox[0],
-                miny=dto.bbox[1],
-                maxx=dto.bbox[2],
-                maxy=dto.bbox[3],
-                srid=dto.srid,
+            query = select(self.model).filter(
+                self.model.shape.intersects(
+                    ST_MakeEnvelope(
+                        dto.bbox[0], dto.bbox[1], dto.bbox[2], dto.bbox[3], dto.srid
+                    )
+                )
             )
 
             result = await self._session.execute(query)
-
-            records = result.fetchall()
+            records = result.unique().scalars().all()
 
             logger.info(f"Найдено {len(records)} записей.")
+            return records
 
-            objects = []
-            for record in records:
-                obj = {
-                    "id": record[0],
-                    "iin_bin": record[1],
-                    "name_ru": record[2],
-                    "address": record[3],
-                    "shape": wkb_to_geojson(record[4]),
-                }
-                objects.append(obj)
-
-            return objects
         except SQLAlchemyError as e:
             logger.error(e)
             logger.error(f"Ошибка при поиске записей по bbox {dto}: {e}")

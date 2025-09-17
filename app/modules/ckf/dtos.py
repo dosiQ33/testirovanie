@@ -7,6 +7,7 @@ Copyright (c) 2025 RaiMX
 """
 
 from datetime import date, datetime
+from app.modules.common.utils import SerializedGeojson
 from pydantic import Field, ConfigDict, field_serializer
 from typing import Any, List, Optional
 
@@ -460,3 +461,17 @@ class SzptRegionRequestDto(BasestDto):
     year: int
     territory: Optional[str] = None
     region: RegionEnum
+
+
+class OrganizationBboxDto(BasestDto):
+    id: int
+    iin_bin: str
+    name_ru: str
+    address: Optional[str]
+    shape: SerializedGeojson
+
+    risk_degree_id: Optional[int] = None
+    risk_degree: Optional[SimpleRefDto] = None
+
+    class Config:
+        from_attributes = True

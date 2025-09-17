@@ -7,6 +7,7 @@ Copyright (c) 2025 RaiMX
 """
 
 from app.modules.admins.models import Employees
+from app.modules.nsi.dtos import SimpleRefDto
 from fastapi import APIRouter, HTTPException, Query, status
 from typing import Annotated, List
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -56,6 +57,7 @@ from .dtos import (
     KkmsByTerritorySumByMonthDto,
     KkmsDto,
     KkmsFilterDto,
+    OrganizationBboxDto,
     OrganizationDto,
     OrganizationsFilterDto,
     OrganizationsByYearAndRegionsResponseDto,
@@ -146,11 +148,11 @@ class OrganizationsRouter(APIRouter):
         return [OrganizationDto.model_validate(item) for item in response]
 
     @sub_router.get("/bbox")
-    @cache(expire=cache_ttl, key_builder=request_key_builder)  # Кэширование на 24 часа
+    @cache(expire=cache_ttl, key_builder=request_key_builder)
     async def get_by_bbox(
         bbox: Annotated[Bbox, Query()],
         session: AsyncSession = Depends(get_session_with_commit),
-    ):
+    ) -> List[OrganizationBboxDto]:
         response = await OrganizationsRepo(session).get_by_bbox(bbox)
         if not response:
             raise HTTPException(
@@ -158,7 +160,30 @@ class OrganizationsRouter(APIRouter):
                 detail="Произошла ошибка при поиске записей",
             )
 
-        return response
+        result = []
+        for org in response:
+            result.append(
+                OrganizationBboxDto(
+                    id=org.id,
+                    iin_bin=org.iin_bin,
+                    name_ru=org.name_ru,
+                    address=org.address,
+                    shape=org.shape,
+                    risk_degree_id=(
+                        org.risk_info.risk_degree_id if org.risk_info else None
+                    ),
+                    risk_degree=(
+                        SimpleRefDto(
+                            id=org.risk_info.risk_degree.id,
+                            name=org.risk_info.risk_degree.name,
+                        )
+                        if org.risk_info and org.risk_info.risk_degree
+                        else None
+                    ),
+                )
+            )
+
+        return result
 
     @sub_router.get("/branches/{bin_root}")
     @cache(expire=cache_ttl, key_builder=request_key_builder)  # Кэширование на 24 часа

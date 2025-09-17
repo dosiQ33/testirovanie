@@ -63,6 +63,7 @@ from .models import (
     FnoTypes,
     Organizations,
     Kkms,
+    Otps,
     Receipts,
     ReceiptsAnnual,
     ReceiptsDaily,
@@ -166,12 +167,14 @@ class OrganizationsRepo(BaseRepository):
                     RiskInfos.risk_degree_id.in_(filters.risk_degree_ids)
                 )
 
+            if filters.otp:
+                query = query.join(Otps).filter(Otps.status == True)
+
             result = await self._session.execute(query)
             records = result.unique().scalars().all()
 
             logger.info(f"Найдено {len(records)} записей.")
 
-            # If no records found return empty list
             if not records:
                 return []
 
@@ -383,6 +386,9 @@ class OrganizationsRepo(BaseRepository):
                 query = query.join(RiskInfos).filter(
                     RiskInfos.risk_degree_id.in_(filters.risk_degree_ids)
                 )
+
+            if filters.otp:
+                query = query.join(Otps).filter(Otps.status == True)
 
             result = await self._session.execute(query)
             records = result.unique().scalars().all()

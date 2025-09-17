@@ -99,6 +99,7 @@ class Organizations(BaseModelWithShapePoint):
     esf_buyer_daily: Mapped["EsfBuyerDaily"] = relationship(
         back_populates="organization", lazy="selectin"
     )
+    otp: Mapped["Otps"] = relationship("Otps", uselist=False, lazy="selectin")
 
 
 class FnoTypes(BasestModel):
@@ -501,3 +502,14 @@ class GtinStat(BasestModel):
     gtin_count: Mapped[int] = mapped_column(
         Integer, primary_key=True, comment="Количество GTIN"
     )
+
+
+class Otps(BasestModel):
+    __tablename__ = "otps"
+    __table_args__ = dict(comment="OTP")
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    organization_id: Mapped[int] = mapped_column(
+        ForeignKey("organizations.id"), comment="Организация", nullable=False
+    )
+    status: Mapped[bool] = mapped_column(comment="Статус OTP", nullable=False)

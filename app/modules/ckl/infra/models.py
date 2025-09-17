@@ -5,7 +5,7 @@ from sqlalchemy import Integer, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.modules.common.models import BasestModel, BaseModel
-from datetime import date
+from datetime import date, datetime
 
 db_schema = "ckl"
 
@@ -65,3 +65,17 @@ class Cameras(BaseModel):
     installation_date: Mapped[date] = mapped_column(name='installation_date', comment='Дата установки камеры', nullable=False)
     camera_operator_id: Mapped[int] = mapped_column(ForeignKey('ckl.camera_operators.id'), comment='Ссылка на оператора камер', nullable=True)
     roads_id: Mapped[int] = mapped_column(ForeignKey('ckl.roads.id'), comment='Ссылка на дорогу', nullable=True)
+
+class CameraEvents(BaseModel):
+    __tablename__ = 'camera_events'
+    __table_args__ = dict(schema=db_schema)
+
+    vehicle_id: Mapped[int] = mapped_column(ForeignKey('ckl.vehicles.id'), comment='Транспортное средство', nullable=True)
+    camera_id: Mapped[int] = mapped_column(ForeignKey('ckl.cameras.id'), comment='Ссылка на камеру', nullable=True)
+    event_timestamp: Mapped[datetime] = mapped_column(name='event_timestamp', comment='Дата и время фиксации события', nullable=False)
+    shape: Mapped[int] = mapped_column(name='shape', comment='Координаты GPS', nullable=False)
+    address: Mapped[str] = mapped_column(name='address', comment='Местоположения', nullable=True)
+    speed: Mapped[float] = mapped_column(name='speed', comment='Скорость автомобиля в момент фиксации', nullable=False)
+    image_url: Mapped[str] = mapped_column(name='image_url', comment='Ссылка на изображение', nullable=True)
+    is_recognized: Mapped[bool] = mapped_column(name='is_recognized', comment='Было ли успешно распознано ТС', nullable=True)
+    comments: Mapped[str] = mapped_column(name='comments', comment='Примечания', nullable=True)

@@ -37,3 +37,11 @@ class TransportCompaniesDto(BasestDto):
     is_active: bool
     created_at: datetime
     updated_at: datetime
+
+class VehicleGeoInfoResponse(BasestDto):
+    raion: str
+    oblast: str
+    last_event_timestamp: Optional[str]
+    road_name: str
+    preferred_entry_timestamp: datetime
+    customs_office_name: str

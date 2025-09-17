@@ -18,7 +18,8 @@ from .models import (
 
 from .dtos import (
     VehiclesDto,
-    TransportCompaniesDto
+    TransportCompaniesDto,
+    VehicleGeoInfoResponse
 )
 
 from .repository import (
@@ -47,6 +48,34 @@ class VehiclesRouter(APIRouter):
         vehicle_id: int, session: AsyncSession = Depends(get_session_with_commit)
     ):
         response = await VehiclesRepo(session).get_vehicle_info(vehicle_id)
+
+        return response
+    
+    @sub_router.get("/geo-info/{vehicle_id}", response_model=VehicleGeoInfoResponse)
+    @cache(expire=cache_ttl, key_builder=request_key_builder)
+    async def get_vehicle_position_info(
+        vehicle_id: int, session: AsyncSession = Depends(get_session_with_commit)
+    ):
+        response = await VehiclesRepo(session).get_vehicle_position_info(vehicle_id)
+
+        return response
+    
+
+    @sub_router.get("/entrypoints/{vehicle_id}",)
+    @cache(expire=cache_ttl, key_builder=request_key_builder)
+    async def get_vehicle_entrypoints(
+        vehicle_id: int, session: AsyncSession = Depends(get_session_with_commit)
+    ):
+        response = await VehiclesRepo(session).get_entrypoints(vehicle_id)
+
+        return response
+    
+    @sub_router.get("/interpoints/{vehicle_id}",)
+    @cache(expire=cache_ttl, key_builder=request_key_builder)
+    async def get_vehicle_entrypoints(
+        vehicle_id: int, session: AsyncSession = Depends(get_session_with_commit)
+    ):
+        response = await VehiclesRepo(session).get_intermediate_points(vehicle_id)
 
         return response
     

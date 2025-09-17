@@ -46,6 +46,11 @@ class KkmsDto(DtoWithShape):
     model_config = ConfigDict(protected_namespaces=())
 
 
+class OtpsDto(BaseDto):
+    organization_id: int
+    status: bool
+
+
 class OrganizationDto(DtoWithShape):
     iin_bin: str
     name_ru: str
@@ -85,6 +90,7 @@ class OrganizationDto(DtoWithShape):
     village: Optional[str] = None
 
     kkms: List[KkmsDto] = Field(default_factory=list)
+    otp: Optional[OtpsDto] = None
 
 
 class OrganizationsWithKkmsDto(OrganizationDto):
@@ -96,6 +102,7 @@ class OrganizationsFilterDto(BasestDto):
     iin_bin: Optional[str] = None
     risk_degree_ids: Optional[List[int]] = None
     oked_ids: Optional[List[int]] = None
+    otp: Optional[bool] = None
 
 
 class OrganizationsByYearAndRegionsResponseDto(BasestDto):

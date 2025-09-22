@@ -59,6 +59,7 @@ from .dtos import (
     KkmsFilterDto,
     OrganizationBboxDto,
     OrganizationDto,
+    OrganizationWithRiskDto,
     OrganizationsFilterDto,
     OrganizationsByYearAndRegionsResponseDto,
     ReceiptsAnnualDto,
@@ -499,6 +500,23 @@ class OrganizationsRouter(APIRouter):
                 "raion": f"Доступ только к данным {territory_info.territory_name}",
             }.get(territory_info.territory_level, "Неопределенный уровень доступа"),
         }
+
+    @sub_router.get("/{id}/with-risks")
+    @cache(expire=cache_ttl, key_builder=request_key_builder)
+    async def get_organization_with_risks(
+        id: int,
+        session: AsyncSession = Depends(get_session_with_commit),
+    ) -> OrganizationWithRiskDto:
+        """
+        Получить организацию по ID с подробной информацией о рисках
+        """
+        response = await OrganizationsRepo(session).get_one_by_id(id)
+        if not response:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Организация не найдена"
+            )
+
+        return OrganizationWithRiskDto.model_validate(response)
 
 
 class KkmsRouter(APIRouter):

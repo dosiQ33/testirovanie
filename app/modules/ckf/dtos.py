@@ -475,3 +475,9 @@ class OrganizationBboxDto(BasestDto):
 
     class Config:
         from_attributes = True
+
+
+class OrganizationWithRiskDto(OrganizationDto):
+    """Организация с информацией о рисках"""
+
+    risk_info: Optional[RiskInfosDto] = None

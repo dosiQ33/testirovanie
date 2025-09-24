@@ -94,8 +94,9 @@ class PopulationRepo(BaseRepository):
                     Populations.date_ >= date(count_dto.year, 1, 1),
                     Populations.date_ <= date(count_dto.year, 12, 31)
                 )
-                .scalar_subquery()
             )
+            max_date_subq = self.apply_region_filter(query=max_date_subq, region=count_dto.region, region_id=count_dto.region_id)
+            max_date_subq = max_date_subq.scalar_subquery()
             
             query = select(Populations).filter(Populations.date_ == max_date_subq)
             

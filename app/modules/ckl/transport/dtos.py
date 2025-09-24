@@ -43,5 +43,5 @@ class VehicleGeoInfoResponse(BasestDto):
     oblast: str
     last_event_timestamp: Optional[datetime]
     road_name: str
-    preferred_entry_timestamp: datetime
+    date_of_booking: datetime
     customs_office_name: str

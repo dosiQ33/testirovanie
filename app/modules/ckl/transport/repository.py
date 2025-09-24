@@ -31,16 +31,13 @@ class VehiclesRepo(BaseRepository):
         query = (
             select(
                 Vehicles.number,
-                VehicleTypes.name_ru,
+                VehicleTypes.name_ru.label('vehicle_type'),
                 TransportCompanies.name.label('company_name'),
                 VehicleMakes.name_ru.label('vehicle_make'),
                 Vehicles.year,
                 Countries.name_ru.label('registration_country'),
-                Vehicles.registration_date,
                 Vehicles.is_active,
-                Vehicles.address,
-                # Roads.name, откоментить когда добавять значение road_id
-                Vehicles.has_customs_booking,
+                Roads.name,
                 # Trailers.number откоментить когда заполнят trailers
             )
             .join(VehicleMakes, Vehicles.make_id == VehicleMakes.id)
@@ -50,7 +47,7 @@ class VehiclesRepo(BaseRepository):
             )
             .join(VehicleTypes, Vehicles.type_id == VehicleTypes.id)
             .join(Countries, Vehicles.country_id == Countries.id)
-            # .join(Roads, Vehicles.road_id == Roads.id) откоментить когда добавять значение road_id
+            .join(Roads, Vehicles.road_id == Roads.id)
             # .outerjoin(Trailers, Trailers.vehicle_id == Vehicles.id) откоментить когда заполнят trailers
             .where(Vehicles.id == vehicle_id)
         )
@@ -85,7 +82,7 @@ class VehiclesRepo(BaseRepository):
         last_booking = (
             select(
                 Roads.name.label("road_name"),
-                CustomsBookings.preferred_entry_timestamp.label("preferred_entry_timestamp"),
+                CustomsBookings.preferred_entry_timestamp.label("date_of_booking"),
                 CustomsOffices.name_ru.label("customs_office_name"),
             )
             .join(Vehicles, CustomsBookings.vehicle_id == Vehicles.id)
@@ -105,7 +102,7 @@ class VehiclesRepo(BaseRepository):
             select(
                 last_cam_ts.label("last_event_timestamp"),
                 last_booking.c.road_name,
-                last_booking.c.preferred_entry_timestamp,
+                last_booking.c.date_of_booking,
                 last_booking.c.customs_office_name,
             )
         )

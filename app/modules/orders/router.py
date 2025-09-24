@@ -123,6 +123,7 @@ class RisksRouter(APIRouter):
         city: str | None = None,
         district: str | None = None,
         village: str | None = None,
+        territory: str | None = None,
         session: AsyncSession = Depends(get_session_with_commit),
     ) -> PaginatedResponse[RisksDto]:
         """
@@ -155,6 +156,7 @@ class RisksRouter(APIRouter):
             city=city,
             district=district,
             village=village,
+            territory=territory
         )
 
         response, total = await RisksRepo(session).get_risks_with_details(

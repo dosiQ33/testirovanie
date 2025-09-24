@@ -3,6 +3,7 @@ from fastapi import HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 import sqlalchemy
 from loguru import logger
+from app.modules.common.utils import territory_to_geo_element
 from app.modules.common.repository import BaseRepository
 from app.modules.admins.models import Employees
 from .dtos import (
@@ -146,6 +147,15 @@ class RisksRepo(BaseRepository):
                 )
                 count_query = count_query.filter(
                     Organizations.village.ilike(f"%{filters.village}%")
+                )
+            
+            if filters.territory is not None:
+                territory = territory_to_geo_element(filters.territory)
+                query = query.filter(
+                    func.ST_Within(Organizations.shape, territory)
+                )
+                count_query = count_query.filter(
+                    func.ST_Within(Organizations.shape, territory)
                 )
 
             total = (await self._session.execute(count_query)).scalar()

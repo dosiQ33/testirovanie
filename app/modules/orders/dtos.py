@@ -68,6 +68,7 @@ class RisksFilterDto(BasestDto):
     city: Optional[str] = None
     district: Optional[str] = None
     village: Optional[str] = None
+    territory: Optional[str] = None
 
 
 class RiskUpdateDto(BasestDto):

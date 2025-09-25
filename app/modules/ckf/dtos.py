@@ -481,3 +481,15 @@ class OrganizationWithRiskDto(OrganizationDto):
     """Организация с информацией о рисках"""
 
     risk_info: Optional[RiskInfosDto] = None
+
+
+class ReceiptsLatestFilterDto(BasestDto):
+    """DTO для фильтрации последних чеков"""
+
+    kkm_id: Optional[int] = Field(None, description="ID ККМ для фильтрации")
+    organization_id: Optional[int] = Field(
+        None, description="ID организации для фильтрации"
+    )
+    include_today_filter: Optional[bool] = Field(
+        True, description="Применять ли фильтр по сегодняшней дате (по умолчанию True)"
+    )

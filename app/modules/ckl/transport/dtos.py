@@ -45,3 +45,23 @@ class VehicleGeoInfoResponse(BasestDto):
     road_name: str
     date_of_booking: datetime
     customs_office_name: str
+
+class WarehousesDto(BasestDto):
+    id:int
+    country_id: int
+    type_id: int
+    shape: int
+    address: str
+    date_start: date
+    rca_code: str
+    capacity: str
+    contact_person: str
+    is_active: bool
+    document_number: str
+    contact_information: str
+    iin_bin: str
+    customs_offices_id: int
+    other_information: str
+    organisation_id: int
+    created_at: datetime
+    updated_at: datetime

@@ -79,17 +79,21 @@ class Warehouses(BaseModel):
     __tablename__ = 'warehouses'
     __table_args__ = dict(schema=db_schema)
 
-    vehicle_id: Mapped[int] = mapped_column(ForeignKey('ckl.vehicles.id'), comment='Ссылка на ТС', nullable=True)
-    type_id: Mapped[int] = mapped_column(ForeignKey('ckl.warehouse_types.id'), comment='Тип склада', nullable=True)
-    name: Mapped[str] = mapped_column(name='name', comment='Название склада', nullable=False)
+    country_id: Mapped[int] = mapped_column(ForeignKey('ckl.countries.id'), comment='Ссылка на countries', nullable=True)
+    type_id: Mapped[int] = mapped_column(ForeignKey('ckl.warehouse_types'), comment='Тип склада', nullable=True)
     shape: Mapped[int] = mapped_column(name='shape', comment='GPS-координаты', nullable=False)
-    address: Mapped[str] = mapped_column(name='address', comment='Адрес или описание местоположения', nullable=True)
-    kato_code: Mapped[str] = mapped_column(name='kato_code', comment='Регион или административная зона', nullable=True)
+    address: Mapped[str] = mapped_column(name='address', comment='Адрес или описание местоположения', nullable=False)
+    date_start: Mapped[date] = mapped_column(name='date_start', comment='Дата включения юридического лица в реестр владельцев Склада хранения собственных товаров', nullable=True)
     rca_code: Mapped[str] = mapped_column(name='rca_code', comment='Код РКА', nullable=True)
-    capacity_m3: Mapped[float] = mapped_column(name='capacity_m3', comment='Вместимость склада в кубических метрах', nullable=False)
-    contact_person: Mapped[str] = mapped_column(name='contact_person', comment='Ответственное лицо или оператор', nullable=False)
-    phone: Mapped[str] = mapped_column(name='phone', comment='Контактный телефон', nullable=False)
+    capacity: Mapped[str] = mapped_column(name='capacity', comment='Общая площадь Склада хранения собственных товаров', nullable=False)
+    contact_person: Mapped[str] = mapped_column(name='contact_person', comment='Организационно-правовая форма и наименование владельца Склада хранения собственных товаров', nullable=False)
     is_active: Mapped[bool] = mapped_column(name='is_active', comment='Признак активности склада', nullable=False)
+    document_number: Mapped[str] = mapped_column(name='document_number', comment='Реквизиты документа, подтверждающего включение юридического лица в реестр СХСТ', nullable=True)
+    contact_information: Mapped[str] = mapped_column(name='contact_information', comment='Местонахождение владельца СХСТ, почтовый адрес, телефон владельца Склада хранения собственных товаров', nullable=True)
+    iin_bin: Mapped[str] = mapped_column(name='iin_bin', comment='ИИН/УНП/РНН', nullable=True)
+    customs_offices_id: Mapped[int] = mapped_column(ForeignKey('ckl.customs_offices.id'), comment='Таможенный орган, в пределах деятельности которого расположен Склад хранения собственных товаров', nullable=True)
+    other_information: Mapped[str] = mapped_column(name='other_information', comment='Дополнительная информация об СХСТ', nullable=True)
+    organisation_id: Mapped[int] = mapped_column(ForeignKey('ckl.organizations.id'), comment='Связь с таблицей организации по iin_bin', nullable=True)
 
 class WeighStationTypes(BaseModel):
     __tablename__ = 'weigh_station_types'

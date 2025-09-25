@@ -8,7 +8,8 @@ from ..customs.models import (
     CustomsBookings,
     BookingStatuses,
     CustomsOffices,
-    CustomsCrossings
+    CustomsCrossings,
+    WarehouseTypes
 )
 
 from ...ext.kazgeodesy.models import KazgeodesyRkOblasti, KazgeodesyRkRaiony
@@ -20,7 +21,8 @@ from .models import (
     VehicleTypes, 
     TransportCompanies, 
     VehicleMakes,
-    Trailers
+    Trailers,
+    Warehouses,
 )
 
 
@@ -266,3 +268,30 @@ class TransportCompaniesRepo(BaseRepository):
         rows = result.all()
 
         return [dict(row._mapping) for row in rows]
+    
+
+class WarehousesRepository(BaseRepository):
+    model = Warehouses
+
+    async def get_warehouse_info(self, warehouse_id: int):
+        query = (
+            select(
+                Warehouses.address,
+                Warehouses.contact_person,
+                Warehouses.contact_information,
+                Warehouses.iin_bin,
+                Warehouses.date_start,
+                Warehouses.capacity,
+                WarehouseTypes.name_ru.label('type_name'),
+                CustomsOffices.name_ru.label('custom_office_name'),
+                Warehouses.other_information
+            )
+            .join(WarehouseTypes, Warehouses.type_id == WarehouseTypes.id)
+            .join(CustomsOffices, Warehouses.customs_offices_id == CustomsOffices.id)
+            .where(Warehouses.id == warehouse_id)
+        )
+
+        result = await self._session.execute(query)
+        response = result.mappings().one()
+
+        return response

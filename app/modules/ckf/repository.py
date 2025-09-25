@@ -50,6 +50,7 @@ from .dtos import (
     OrganizationsFilterDto,
     BuildingsFilterDto,
     KkmStatisticsRequestDto,
+    ReceiptsLatestFilterDto,
     SzptRegionRequestDto,
 )
 from .models import (
@@ -1423,7 +1424,9 @@ class ReceiptsRepo(BaseWithKkmRepository):
             logger.error(f"Ошибка при получении агрегированной статистики ККМ: {e}")
             raise
 
-    async def get_latest_receipts_with_details(self, limit: int = 100):
+    async def get_latest_receipts_with_details(
+        self, limit: int = 100, filters: Optional[ReceiptsLatestFilterDto] = None
+    ):
         try:
             query = (
                 select(
@@ -1443,23 +1446,65 @@ class ReceiptsRepo(BaseWithKkmRepository):
                 .select_from(Receipts)
                 .outerjoin(Kkms, Kkms.id == Receipts.kkms_id)
                 .outerjoin(Organizations, Organizations.id == Kkms.organization_id)
-                .where(
-                    Receipts.operation_date
-                    >= func.timezone("Asia/Almaty", func.current_date()),
-                    Receipts.operation_date <= func.timezone("Asia/Almaty", func.now()),
-                )
-                .order_by(desc(Receipts.operation_date))
-                .limit(limit)
             )
+
+            # Если фильтры не переданы, создаем дефолтный фильтр для обратной совместимости
+            if filters is None:
+                filters = ReceiptsLatestFilterDto(include_today_filter=True)
+
+            # Применяем фильтры
+            where_conditions = []
+
+            # Фильтр по ККМ
+            if filters.kkm_id is not None:
+                where_conditions.append(Receipts.kkms_id == filters.kkm_id)
+
+            # Фильтр по организации
+            if filters.organization_id is not None:
+                where_conditions.append(Kkms.organization_id == filters.organization_id)
+
+            # Фильтр по дате (применяется по умолчанию, если не указано иное)
+            if filters.include_today_filter:
+                where_conditions.extend(
+                    [
+                        Receipts.operation_date
+                        >= func.timezone("Asia/Almaty", func.current_date()),
+                        Receipts.operation_date
+                        <= func.timezone("Asia/Almaty", func.now()),
+                    ]
+                )
+
+            # Применяем все условия
+            if where_conditions:
+                query = query.where(and_(*where_conditions))
+
+            query = query.order_by(desc(Receipts.operation_date)).limit(limit)
 
             result = await self._session.execute(query)
             records = result.all()
 
-            logger.info(f"Найдено {len(records)} записей сегодняшних чеков с деталями.")
+            # Правильное описание фильтра для логирования
+            filter_parts = []
+            if filters.kkm_id:
+                filter_parts.append(f"ККМ ID {filters.kkm_id}")
+            if filters.organization_id:
+                filter_parts.append(f"организация ID {filters.organization_id}")
+            if filters.include_today_filter:
+                filter_parts.append("только сегодняшние")
+            else:
+                filter_parts.append("все записи")
+
+            filter_description = (
+                ", ".join(filter_parts) if filter_parts else "все записи"
+            )
+
+            logger.info(
+                f"Найдено {len(records)} записей чеков с деталями ({filter_description})."
+            )
 
             return [dict(record._mapping) for record in records]
         except SQLAlchemyError as e:
-            logger.error(f"Ошибка при получении сегодняшних чеков с деталями: {e}")
+            logger.error(f"Ошибка при получении чеков с деталями: {e}")
             raise
 
 

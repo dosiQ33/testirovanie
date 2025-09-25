@@ -9,7 +9,7 @@ Copyright (c) 2025 RaiMX
 from app.modules.admins.models import Employees
 from app.modules.nsi.dtos import SimpleRefDto
 from fastapi import APIRouter, HTTPException, Query, status
-from typing import Annotated, List
+from typing import Annotated, List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import Depends
 from datetime import datetime
@@ -65,6 +65,7 @@ from .dtos import (
     ReceiptsAnnualDto,
     ReceiptsDailyDto,
     ReceiptsDto,
+    ReceiptsLatestFilterDto,
     RiskInfosDto,
     EsfStatisticsDto,
     EsfMonthDto,
@@ -1060,15 +1061,38 @@ class ReceiptsRouter(APIRouter):
         limit: int = Query(
             100, ge=1, le=1000, description="Количество записей (от 1 до 1000)"
         ),
+        kkm_id: Optional[int] = Query(None, description="ID ККМ для фильтрации"),
+        organization_id: Optional[int] = Query(
+            None, description="ID организации для фильтрации"
+        ),
+        include_today_filter: Optional[bool] = Query(
+            True,
+            description="Применять ли фильтр по сегодняшней дате (по умолчанию True)",
+        ),
         session: AsyncSession = Depends(get_session_without_commit),
     ) -> List[ReceiptDetailDto]:
         """
         Получить последние чеки с подробной информацией о ККМ и организации.
 
         - **limit**: количество записей для возврата (по умолчанию 100, максимум 1000)
+        - **kkm_id**: ID ККМ для фильтрации (опционально)
+        - **organization_id**: ID организации для фильтрации (опционально)
+        - **include_today_filter**: применять ли фильтр по сегодняшней дате (по умолчанию True)
+
+        Примеры использования:
+        - Все сегодняшние чеки: `/latest-with-details?limit=50`
+        - Чеки по ККМ: `/latest-with-details?kkm_id=123&include_today_filter=false`
+        - Чеки по организации: `/latest-with-details?organization_id=456&include_today_filter=false`
         """
+        # Создаем DTO из переданных параметров
+        filters = ReceiptsLatestFilterDto(
+            kkm_id=kkm_id,
+            organization_id=organization_id,
+            include_today_filter=include_today_filter,
+        )
+
         response = await ReceiptsRepo(session).get_latest_receipts_with_details(
-            limit=limit
+            limit=limit, filters=filters
         )
 
         return [ReceiptDetailDto.model_validate(item) for item in response]

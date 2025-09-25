@@ -13,18 +13,21 @@ from app.modules.common.router import ORJsonCoder
 
 from .models import (
     Vehicles,
-    TransportCompanies
+    TransportCompanies,
+    Warehouses
 )
 
 from .dtos import (
     VehiclesDto,
     TransportCompaniesDto,
-    VehicleGeoInfoResponse
+    VehicleGeoInfoResponse,
+    WarehousesDto
 )
 
 from .repository import (
     VehiclesRepo,
-    TransportCompaniesRepo
+    TransportCompaniesRepo,
+    WarehousesRepository
 )
 
 router = APIRouter(prefix="/transport")
@@ -80,9 +83,9 @@ class VehiclesRouter(APIRouter):
         return response
     
 class TransportCompaniesRouter(APIRouter):
-    sub_router = APIRouter(prefix="/trasnport-companies", tags=["ckl: transport companies"])
+    sub_router = APIRouter(prefix="/transport-companies", tags=["ckl: transport companies"])
     base_router = BaseCRUDRouter(
-        "trasnport-companies", TransportCompanies, TransportCompaniesRepo, TransportCompaniesDto, tags=["ckl: transport companies"]
+        "transport-companies", TransportCompanies, TransportCompaniesRepo, TransportCompaniesDto, tags=["ckl: transport companies"]
     )
 
     def __init__(self):
@@ -117,7 +120,29 @@ class TransportCompaniesRouter(APIRouter):
         response = await TransportCompaniesRepo(session).get_all_transport_comapnies()
 
         return response
+    
+class WarehousesRouter(APIRouter):
+    sub_router = APIRouter(prefix="/warehouses", tags=["ckl: warehouses"])
+    base_router = BaseCRUDRouter(
+        "warehouses", Warehouses, WarehousesRepository, WarehousesDto, tags=["ckl: warehouses"]
+    )
 
+    def __init__(self):
+        super().__init__()
+
+        self.include_router(self.sub_router)
+        self.include_router(self.base_router)
+
+    @sub_router.get("/info/{warehouse_id}")
+    @cache(expire=cache_ttl, key_builder=request_key_builder)
+    async def get_warehouse_info(
+        warehouse_id: int,
+        session: AsyncSession = Depends(get_session_with_commit)
+    ):
+        response = await WarehousesRepository(session).get_warehouse_info(warehouse_id)
+
+        return response
 
 router.include_router(VehiclesRouter())
 router.include_router(TransportCompaniesRouter())
+router.include_router(WarehousesRouter())

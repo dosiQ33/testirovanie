@@ -1,4 +1,4 @@
-from sqlalchemy import BigInteger, ForeignKey, Date, Integer
+from sqlalchemy import BigInteger, ForeignKey, Date, Integer, PrimaryKeyConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import date, datetime
 
@@ -513,3 +513,33 @@ class Otps(BasestModel):
         ForeignKey("organizations.id"), comment="Организация", nullable=False
     )
     status: Mapped[bool] = mapped_column(comment="Статус OTP", nullable=False)
+
+
+class Violations(BasestModel):
+    __tablename__ = "violation"
+    __table_args__ = (
+        PrimaryKeyConstraint("kkms_id", "szpt_id"),
+        dict(comment="Нарушения СЗПТ"),
+    )
+
+    kkms_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("kkms.id"), nullable=False, comment="ККМ"
+    )
+    szpt_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("dic_szpt_products.id"),
+        nullable=False,
+        comment="СЗПТ ID",
+    )
+    fiskal_sign: Mapped[int] = mapped_column(
+        BigInteger, comment="Фискальный номер", nullable=True
+    )
+    violation_stats: Mapped[int] = mapped_column(
+        BigInteger, comment="Количество нарушений", nullable=False
+    )
+    operation_date: Mapped[datetime] = mapped_column(
+        comment="Дата и время совершения кассовой операции", nullable=True
+    )
+
+    kkm: Mapped["Kkms"] = relationship("Kkms", lazy="selectin")
+    szpt: Mapped["DicSzpt"] = relationship("DicSzpt", lazy="selectin")

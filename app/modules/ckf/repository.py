@@ -73,6 +73,7 @@ from .models import (
     ReceiptsMonthly,
     KkmsSzpt,
     GtinStat,
+    Violations,
 )
 from typing import Optional
 from datetime import date
@@ -1512,51 +1513,54 @@ class SzptRepo(BaseRepository):
     model = DicSzpt
 
     async def get_violations_count_by_kkm_id(self, kkm_id: int, szpt_id: int):
+        """Получить количество нарушений из таблицы violations"""
         try:
             query = (
-                select(func.count())
-                .select_from(Receipts)
+                select(func.sum(Violations.violation_stats).label("total_violations"))
+                .select_from(Violations)
                 .where(
-                    Receipts.kkms_id == kkm_id,
-                    Receipts.has_szpt_violation == True,
-                    Receipts.szpt_id == szpt_id,
+                    Violations.kkms_id == kkm_id,
+                    Violations.szpt_id == szpt_id,
                 )
             )
 
             result = await self._session.execute(query)
             row = result.one()
 
-            return dict(row._mapping)
+            return {"total_violations": row.total_violations or 0}
         except SQLAlchemyError as e:
-            logger.error(f"Ошибка при получении ККМ с нарушениями: {e}")
+            logger.error(f"Ошибка при получении количества нарушений: {e}")
             raise
 
     async def get_last_receipt_with_violation(self, kkm_id: int, szpt_id: int):
+        """Получить информацию о последнем нарушении из таблицы violations"""
         try:
             query_info = (
                 select(
                     Kkms.reg_number,
                     Kkms.serial_number,
-                    Receipts.fiskal_sign,
-                    func.to_char(Receipts.operation_date, "DD-MM-YYYY").label("date"),
-                    func.to_char(Receipts.operation_date, "HH24:MI:SS").label("time"),
+                    Violations.fiskal_sign,
+                    func.to_char(Violations.operation_date, "DD-MM-YYYY").label("date"),
+                    func.to_char(Violations.operation_date, "HH24:MI:SS").label("time"),
                 )
-                .join(Receipts, Kkms.id == Receipts.kkms_id)
+                .join(Kkms, Violations.kkms_id == Kkms.id)
                 .where(
-                    Kkms.id == kkm_id,
-                    Receipts.szpt_id == szpt_id,
-                    Receipts.has_szpt_violation.is_(True),
+                    Violations.kkms_id == kkm_id,
+                    Violations.szpt_id == szpt_id,
                 )
-                .order_by(desc(Receipts.operation_date))
+                .order_by(desc(Violations.operation_date))
                 .limit(1)
             )
 
             result = await self._session.execute(query_info)
-            row = result.one()
+            row = result.one_or_none()
+
+            if not row:
+                return None
 
             return dict(row._mapping)
         except SQLAlchemyError as e:
-            logger.error(f"Ошибка при получении ККМ с нарушениями: {e}")
+            logger.error(f"Ошибка при получении последнего нарушения: {e}")
             raise
 
     async def get_receipt_content(self, fiskal_sign: int):

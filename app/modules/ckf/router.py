@@ -1110,38 +1110,48 @@ class SzptRouter(APIRouter):
         self.include_router(self.sub_router)
         self.include_router(self.base_router)
 
-    @sub_router.get("/info/{kkm_id}/{szpt_id}")
+    @sub_router.get("/violations-count/{kkm_id}/{szpt_id}")
     @cache(expire=cache_ttl, key_builder=request_key_builder)
     async def get_violations_count_by_kkm_id(
         kkm_id: int,
         szpt_id: int,
         session: AsyncSession = Depends(get_session_without_commit),
     ):
+        """Получить количество нарушений по ККМ и СЗПТ"""
         response = await SzptRepo(session).get_violations_count_by_kkm_id(
             kkm_id, szpt_id
         )
-
         return response
 
-    @sub_router.get("/last-receipt/{kkm_id}/{szpt_id}")
+    @sub_router.get("/last-violation-info/{kkm_id}/{szpt_id}")
     @cache(expire=cache_ttl, key_builder=request_key_builder)
-    async def get_last_receipt_with_violation(
+    async def get_last_violation_info(
         kkm_id: int,
         szpt_id: int,
         session: AsyncSession = Depends(get_session_without_commit),
     ):
+        """Получить информацию о последнем нарушении"""
         response = await SzptRepo(session).get_last_receipt_with_violation(
             kkm_id, szpt_id
         )
 
+        if not response:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Информация о нарушениях не найдена",
+            )
+
         return response
 
-    @sub_router.get("/last-receipt/{fiskal_sign}", response_model=LastCheckViolationDto)
+    @sub_router.get(
+        "/receipt-by-fiscal/{fiskal_sign}", response_model=LastCheckViolationDto
+    )
     @cache(expire=cache_ttl, key_builder=request_key_builder)
-    async def get_receipt_content(
+    async def get_receipt_content_by_fiscal(
         fiskal_sign: int,
         session: AsyncSession = Depends(get_session_without_commit),
     ):
+        """Получить содержимое чека по фискальному признаку"""
         payment_types = {0: "Оплата наличными", 1: "Карта", 4: "Мобильная оплата"}
 
         response = await SzptRepo(session).get_receipt_content(fiskal_sign)

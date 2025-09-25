@@ -493,3 +493,13 @@ class ReceiptsLatestFilterDto(BasestDto):
     include_today_filter: Optional[bool] = Field(
         True, description="Применять ли фильтр по сегодняшней дате (по умолчанию True)"
     )
+
+
+class ViolationsDto(BasestDto):
+    kkms_id: int
+    szpt_id: int
+    fiskal_sign: Optional[int] = Field()
+    violation_stats: int
+    operation_date: Optional[datetime]
+
+    kkm: Optional[KkmsDto] = None

@@ -1,3 +1,4 @@
+from typing import List, Optional
 from sqlalchemy import select, update, func
 from fastapi import HTTPException
 from sqlalchemy.exc import SQLAlchemyError
@@ -148,12 +149,10 @@ class RisksRepo(BaseRepository):
                 count_query = count_query.filter(
                     Organizations.village.ilike(f"%{filters.village}%")
                 )
-            
+
             if filters.territory is not None:
                 territory = territory_to_geo_element(filters.territory)
-                query = query.filter(
-                    func.ST_Within(Organizations.shape, territory)
-                )
+                query = query.filter(func.ST_Within(Organizations.shape, territory))
                 count_query = count_query.filter(
                     func.ST_Within(Organizations.shape, territory)
                 )
@@ -453,4 +452,91 @@ class ExecFilesRepo(BaseRepository):
             return records
         except SQLAlchemyError as e:
             logger.error(f"Ошибка при поиске файлов для исполнения {exec_id}: {e}")
+            raise
+
+
+class RisksRepository(BaseRepository):
+    model = Risks
+
+    async def count_by_dic_risk_name_id(self, dic_risk_name_id: int) -> dict:
+        """
+        Подсчет количества рисков по dic_risk_name_id
+
+        Args:
+            dic_risk_name_id: ID из справочника типов рисков
+
+        Returns:
+            dict с количеством рисков и названием типа риска
+        """
+        try:
+            count_query = select(func.count(self.model.id)).where(
+                self.model.risk_name == dic_risk_name_id
+            )
+
+            result = await self._session.execute(count_query)
+            count = result.scalar() or 0
+
+            risk_name = None
+            if count > 0:
+                name_query = select(DicRiskName.name).where(
+                    DicRiskName.id == dic_risk_name_id
+                )
+                name_result = await self._session.execute(name_query)
+                risk_name = name_result.scalar_one_or_none()
+
+            logger.info(
+                f"Найдено {count} рисков для dic_risk_name_id={dic_risk_name_id}"
+            )
+
+            return {
+                "count": count,
+                "dic_risk_name_id": dic_risk_name_id,
+                "risk_name": risk_name,
+            }
+
+        except SQLAlchemyError as e:
+            logger.error(
+                f"Ошибка при подсчете рисков для dic_risk_name_id {dic_risk_name_id}: {e}"
+            )
+            raise
+
+
+class DicRiskNameRepository(BaseRepository):
+    """Репозиторий для наименований рисков"""
+
+    model = DicRiskName
+
+    async def get_all_or_by_risk_type(
+        self, risk_type_id: Optional[int] = None
+    ) -> List[DicRiskName]:
+        """
+        Получить все наименования рисков или отфильтрованные по типу риска
+
+        Args:
+            risk_type_id: ID типа риска (опционально)
+
+        Returns:
+            Список наименований рисков
+        """
+        try:
+            query = select(self.model).order_by(self.model.id)
+
+            if risk_type_id is not None:
+                query = query.where(self.model.risk_type_id == risk_type_id)
+                logger.info(f"Применяется фильтр по risk_type_id={risk_type_id}")
+            else:
+                logger.info("Получение всех наименований рисков без фильтрации")
+
+            result = await self._session.execute(query)
+            records = result.scalars().all()
+
+            logger.info(
+                f"Найдено {len(records)} наименований рисков"
+                + (f" для типа {risk_type_id}" if risk_type_id else "")
+            )
+
+            return records
+
+        except SQLAlchemyError as e:
+            logger.error(f"Ошибка при получении наименований рисков: {e}")
             raise

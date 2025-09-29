@@ -46,6 +46,9 @@ class DicRiskName(BasestModel):
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     code: Mapped[Optional[str]] = mapped_column(comment="Код")
     name: Mapped[Optional[str]] = mapped_column(comment="Наименование")
+    risk_type_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("orders.dic_risk_type.id"), comment="ID типа риска"
+    )
 
 
 class DicRiskType(BasestModel):

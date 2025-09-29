@@ -1,7 +1,7 @@
 from typing import Optional, List
 from datetime import date, datetime
 from pydantic import BaseModel
-from app.modules.common.dto import BaseDto, BasestDto
+from app.modules.common.dto import BaseDto, BasestDto, CountResponseDto
 from app.modules.admins.dtos import EmployeesDto
 from app.modules.ckf.dtos import OrganizationDto
 
@@ -29,6 +29,7 @@ class DicRiskNameDto(BasestDto):
     id: int
     code: Optional[str]
     name: Optional[str]
+    risk_type_id: Optional[int] = None
 
 
 class DicRiskTypeDto(BasestDto):
@@ -119,14 +120,10 @@ class OrdersDto(BaseDto):
     order_desc: Optional[str] = None
     step_count: Optional[int] = None
     sign: Optional[str] = None
-
-    # Relationships
-    order_status_ref: Optional[DicOrderStatusDto] = None
-    order_type_ref: Optional[DicOrderTypeDto] = None
-
-    # Добавляем новые поля
     risks: List[RisksDto] = []
     employee: Optional[EmployeesDto] = None
+    order_status_ref: Optional[DicOrderStatusDto] = None
+    order_type_ref: Optional[DicOrderTypeDto] = None
 
 
 class OrdersFilterDto(BasestDto):
@@ -231,3 +228,10 @@ class ExecFilesFilterDto(BasestDto):
     type: Optional[int] = None
     created_from: Optional[datetime] = None
     created_to: Optional[datetime] = None
+
+
+class CountRisksByDicRiskNameResponseDto(CountResponseDto):
+    """DTO для ответа с количеством рисков"""
+
+    dic_risk_name_id: int
+    risk_name: str | None = None

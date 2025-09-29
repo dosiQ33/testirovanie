@@ -1,4 +1,4 @@
-from typing import Annotated, List
+from typing import Annotated, List, Optional
 from fastapi import APIRouter, Query, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import Depends
@@ -12,6 +12,7 @@ from app.modules.common.router import (
     PaginatedResponse,
 )
 from .dtos import (
+    CountRisksByDicRiskNameResponseDto,
     DicOrderStatusDto,
     DicOrderTypeDto,
     DicRiskDegreeDto,
@@ -49,11 +50,13 @@ from .repository import (
     DicOrderTypeRepo,
     DicRiskDegreeRepo,
     DicRiskNameRepo,
+    DicRiskNameRepository,
     DicRiskTypeRepo,
     ExecFilesRepo,
     ExecutionsRepo,
     RisksRepo,
     OrdersRepo,
+    RisksRepository,
 )
 from .filters import ExecFilesFilter, ExecutionsFilter, RisksFilter, OrdersFilter
 
@@ -156,7 +159,7 @@ class RisksRouter(APIRouter):
             city=city,
             district=district,
             village=village,
-            territory=territory
+            territory=territory,
         )
 
         response, total = await RisksRepo(session).get_risks_with_details(
@@ -240,6 +243,25 @@ class RisksRouter(APIRouter):
         return RiskUpdateResponseDto(
             updated_count=updated_count, message=f"Риск с ID {risk_id} успешно обновлен"
         )
+
+    @sub_router.get(
+        "/count-by-risk-name/{dic_risk_name_id}",
+        response_model=CountRisksByDicRiskNameResponseDto,
+        summary="Количество рисков по типу риска",
+    )
+    @cache(expire=cache_ttl, key_builder=request_key_builder)
+    async def count_risks_by_dic_risk_name(
+        dic_risk_name_id: int,
+        session: AsyncSession = Depends(get_session_with_commit),
+    ) -> CountRisksByDicRiskNameResponseDto:
+        """
+        Получить количество рисков по ID типа риска из справочника
+        """
+        result = await RisksRepository(session).count_by_dic_risk_name_id(
+            dic_risk_name_id
+        )
+
+        return CountRisksByDicRiskNameResponseDto(**result)
 
 
 class OrdersRouter(APIRouter):
@@ -487,12 +509,55 @@ class ExecFilesRouter(APIRouter):
         return [ExecFilesDto.model_validate(item) for item in response]
 
 
+class DicRiskNameRouter(APIRouter):
+    def __init__(self):
+        super().__init__(prefix="/dic-risk-name", tags=["orders: dic-risk-name"])
+
+        self.add_api_route(
+            "",
+            self.get_risk_names,
+            methods=["GET"],
+            response_model=List[DicRiskNameDto],
+        )
+
+        self.add_api_route(
+            "/{id}",
+            self.get_risk_name_by_id,
+            methods=["GET"],
+            response_model=DicRiskNameDto,
+        )
+
+    @staticmethod
+    @cache(expire=cache_ttl, key_builder=request_key_builder)
+    async def get_risk_names(
+        risk_type_id: Optional[int] = Query(None),
+        session: AsyncSession = Depends(get_session_with_commit),
+    ) -> List[DicRiskNameDto]:
+        """Получить список наименований рисков"""
+        records = await DicRiskNameRepository(session).get_all_or_by_risk_type(
+            risk_type_id=risk_type_id
+        )
+        return [DicRiskNameDto.model_validate(item) for item in records]
+
+    @staticmethod
+    @cache(expire=cache_ttl, key_builder=request_key_builder)
+    async def get_risk_name_by_id(
+        id: int,
+        session: AsyncSession = Depends(get_session_with_commit),
+    ) -> DicRiskNameDto:
+        """Получить наименование риска по ID"""
+        record = await DicRiskNameRepository(session).get_one_by_id(id)
+        if not record:
+            raise HTTPException(status_code=404, detail="Не найдено")
+        return DicRiskNameDto.model_validate(record)
+
+
 # Подключение всех роутеров
 router.include_router(dic_order_status_router)
 router.include_router(dic_order_type_router)
 router.include_router(dic_risk_degree_router)
-router.include_router(dic_risk_name_router)
 router.include_router(dic_risk_type_router)
+router.include_router(DicRiskNameRouter())
 router.include_router(RisksRouter())
 router.include_router(OrdersRouter())
 router.include_router(ExecutionsRouter())

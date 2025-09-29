@@ -523,6 +523,7 @@ class KkmsRepo(BaseRepository):
     #
     async def get_kkms_by_month(self, filters: BuildingsFilterDto):
         territory_geom = territory_to_geo_element(territory=filters.territory)
+        current_year = date.today().year
         try:
             month_trunc = cast(
                 func.extract("month", ReceiptsMonthly.month), Integer
@@ -541,21 +542,27 @@ class KkmsRepo(BaseRepository):
                     func.sum(ReceiptsMonthly.check_count).label("check_count")
                 )
 
-            query = (
-                select(*columns)
-                .join(Kkms, ReceiptsMonthly.kkms_id == Kkms.id)
-                .where(
-                    ST_Within(Kkms.shape, territory_geom),
-                    func.extract("year", ReceiptsMonthly.month) == 2025,
-                )
-                .group_by(month_trunc)
-                .order_by(month_trunc)
-            )
+            query = select(*columns).select_from(ReceiptsMonthly)
 
             if filters.floor == FloorEnum.np:
-                query.where(Kkms.date_stop.is_(None))
+                query = query.join(Kkms, ReceiptsMonthly.kkms_id == Kkms.id)
+                query = query.join(
+                    Organizations, Kkms.organization_id == Organizations.id
+                )
+                query = query.where(
+                    func.ST_Within(Organizations.shape, territory_geom),
+                    Organizations.date_stop.is_(None),
+                    func.extract("year", ReceiptsMonthly.month) == current_year,
+                )
             else:
-                query.where(Organizations.date_stop.is_(None))
+                query = query.join(Kkms, ReceiptsMonthly.kkms_id == Kkms.id)
+                query = query.where(
+                    func.ST_Within(Kkms.shape, territory_geom),
+                    Kkms.date_stop.is_(None),
+                    func.extract("year", ReceiptsMonthly.month) == current_year,
+                )
+
+            query = query.group_by(month_trunc).order_by(month_trunc)
 
             result = await self._session.execute(query)
             rows = result.all()

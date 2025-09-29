@@ -510,36 +510,25 @@ class ExecFilesRouter(APIRouter):
 
 
 class DicRiskNameRouter(APIRouter):
+    sub_router = APIRouter(prefix="/dic-risk-name", tags=["orders: dic-risk-name"])
+
     def __init__(self):
-        super().__init__(prefix="/dic-risk-name", tags=["orders: dic-risk-name"])
+        super().__init__()
+        self.include_router(self.sub_router)
 
-        self.add_api_route(
-            "",
-            self.get_risk_names,
-            methods=["GET"],
-            response_model=List[DicRiskNameDto],
-        )
-
-        self.add_api_route(
-            "/{id}",
-            self.get_risk_name_by_id,
-            methods=["GET"],
-            response_model=DicRiskNameDto,
-        )
-
-    @staticmethod
+    @sub_router.get("/list", response_model=List[DicRiskNameDto])
     @cache(expire=cache_ttl, key_builder=request_key_builder)
-    async def get_risk_names(
-        risk_type_id: Optional[int] = Query(None),
+    async def get_risk_names_list(
+        risk_type_id: Optional[int] = Query(None, description="Фильтр по типу риска"),
         session: AsyncSession = Depends(get_session_with_commit),
     ) -> List[DicRiskNameDto]:
-        """Получить список наименований рисков"""
+        """Получить список наименований рисков с фильтрацией"""
         records = await DicRiskNameRepository(session).get_all_or_by_risk_type(
             risk_type_id=risk_type_id
         )
         return [DicRiskNameDto.model_validate(item) for item in records]
 
-    @staticmethod
+    @sub_router.get("/{id}", response_model=DicRiskNameDto)
     @cache(expire=cache_ttl, key_builder=request_key_builder)
     async def get_risk_name_by_id(
         id: int,
@@ -548,7 +537,10 @@ class DicRiskNameRouter(APIRouter):
         """Получить наименование риска по ID"""
         record = await DicRiskNameRepository(session).get_one_by_id(id)
         if not record:
-            raise HTTPException(status_code=404, detail="Не найдено")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Наименование риска с ID {id} не найдено",
+            )
         return DicRiskNameDto.model_validate(record)
 
 

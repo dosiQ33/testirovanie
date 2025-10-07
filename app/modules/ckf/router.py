@@ -66,6 +66,7 @@ from .dtos import (
     ReceiptsDailyDto,
     ReceiptsDto,
     ReceiptsLatestFilterDto,
+    RiskBboxDto,
     RiskInfosDto,
     EsfStatisticsDto,
     EsfMonthDto,
@@ -155,7 +156,19 @@ class OrganizationsRouter(APIRouter):
         bbox: Annotated[Bbox, Query()],
         session: AsyncSession = Depends(get_session_with_commit),
     ) -> List[OrganizationBboxDto]:
+        """
+        Получить организации в указанном bbox с информацией о рисках
+
+        - **bbox**: координаты [minx, miny, maxx, maxy]
+        - **srid**: система координат (по умолчанию 4326)
+
+        Возвращает список организаций с рисками, включая справочную информацию:
+        - Типы рисков
+        - Степени рисков
+        - Наименования рисков
+        """
         response = await OrganizationsRepo(session).get_by_bbox(bbox)
+
         if not response:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -164,6 +177,20 @@ class OrganizationsRouter(APIRouter):
 
         result = []
         for org in response:
+            risks = [
+                RiskBboxDto(
+                    risk_type_id=risk["risk_type_id"],
+                    risk_type_name=risk["risk_type_name"],
+                    risk_degree_id=risk["risk_degree_id"],
+                    risk_degree_name=risk["risk_degree_name"],
+                    risk_name_id=risk["risk_name_id"],
+                    risk_name_name=risk["risk_name_name"],
+                    is_ordered=risk["is_ordered"],
+                    risk_date=risk["risk_date"],
+                )
+                for risk in getattr(org, "_bbox_risks", [])
+            ]
+
             result.append(
                 OrganizationBboxDto(
                     id=org.id,
@@ -171,20 +198,11 @@ class OrganizationsRouter(APIRouter):
                     name_ru=org.name_ru,
                     address=org.address,
                     shape=org.shape,
-                    risk_degree_id=(
-                        org.risk_info.risk_degree_id if org.risk_info else None
-                    ),
-                    risk_degree=(
-                        SimpleRefDto(
-                            id=org.risk_info.risk_degree.id,
-                            name=org.risk_info.risk_degree.name,
-                        )
-                        if org.risk_info and org.risk_info.risk_degree
-                        else None
-                    ),
+                    risks=risks,
                 )
             )
 
+        logger.info(f"Возвращено {len(result)} организаций с рисками для bbox.")
         return result
 
     @sub_router.get("/branches/{bin_root}")

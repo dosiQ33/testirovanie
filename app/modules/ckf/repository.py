@@ -6,6 +6,7 @@ Author: RaiMX
 Copyright (c) 2025 RaiMX
 """
 
+from app.modules.orders.models import DicRiskDegree, DicRiskName, DicRiskType, Risks
 from fastapi import status, HTTPException
 from sqlalchemy import (
     distinct,
@@ -96,13 +97,62 @@ class OrganizationsRepo(BaseRepository):
             )
 
             result = await self._session.execute(query)
-            records = result.unique().scalars().all()
+            orgs = result.unique().scalars().all()
 
-            logger.info(f"Найдено {len(records)} записей.")
-            return records
+            logger.info(f"Найдено {len(orgs)} организаций в bbox.")
+
+            if not orgs:
+                return []
+
+            org_ids = [org.id for org in orgs]
+
+            risks_query = (
+                select(
+                    Risks.organization_id,
+                    Risks.risk_type,
+                    Risks.risk_degree,
+                    Risks.risk_name,
+                    Risks.is_ordered,
+                    Risks.risk_date,
+                    DicRiskType.name.label("risk_type_name"),
+                    DicRiskDegree.name.label("risk_degree_name"),
+                    DicRiskName.name.label("risk_name_name"),
+                )
+                .outerjoin(DicRiskType, Risks.risk_type == DicRiskType.id)
+                .outerjoin(DicRiskDegree, Risks.risk_degree == DicRiskDegree.id)
+                .outerjoin(DicRiskName, Risks.risk_name == DicRiskName.id)
+                .filter(Risks.organization_id.in_(org_ids))
+                .order_by(Risks.organization_id, Risks.risk_date.desc())
+            )
+
+            risks_result = await self._session.execute(risks_query)
+            risks_rows = risks_result.all()
+
+            logger.info(
+                f"Найдено {len(risks_rows)} рисков для {len(orgs)} организаций."
+            )
+
+            risks_by_org = defaultdict(list)
+            for row in risks_rows:
+                risks_by_org[row.organization_id].append(
+                    {
+                        "risk_type_id": row.risk_type,
+                        "risk_type_name": row.risk_type_name,
+                        "risk_degree_id": row.risk_degree,
+                        "risk_degree_name": row.risk_degree_name,
+                        "risk_name_id": row.risk_name,
+                        "risk_name_name": row.risk_name_name,
+                        "is_ordered": row.is_ordered,
+                        "risk_date": row.risk_date,
+                    }
+                )
+
+            for org in orgs:
+                org._bbox_risks = risks_by_org.get(org.id, [])
+
+            return orgs
 
         except SQLAlchemyError as e:
-            logger.error(e)
             logger.error(f"Ошибка при поиске записей по bbox {dto}: {e}")
             raise
 

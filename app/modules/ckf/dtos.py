@@ -463,6 +463,22 @@ class SzptRegionRequestDto(BasestDto):
     region: RegionEnum
 
 
+class RiskBboxDto(BasestDto):
+    """DTO для отображения рисков в bbox со справочной информацией"""
+
+    risk_type_id: Optional[int] = None
+    risk_type_name: Optional[str] = None
+
+    risk_degree_id: Optional[int] = None
+    risk_degree_name: Optional[str] = None
+
+    risk_name_id: Optional[int] = None
+    risk_name_name: Optional[str] = None
+
+    is_ordered: Optional[bool] = None
+    risk_date: Optional[date] = None
+
+
 class OrganizationBboxDto(BasestDto):
     id: int
     iin_bin: str
@@ -470,11 +486,8 @@ class OrganizationBboxDto(BasestDto):
     address: Optional[str]
     shape: SerializedGeojson
 
-    risk_degree_id: Optional[int] = None
-    risk_degree: Optional[SimpleRefDto] = None
-
-    class Config:
-        from_attributes = True
+    # Новое - список рисков вместо одного риска
+    risks: List[RiskBboxDto] = []
 
 
 class OrganizationWithRiskDto(OrganizationDto):

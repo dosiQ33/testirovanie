@@ -1,3 +1,5 @@
+from typing import List, TYPE_CHECKING
+
 from sqlalchemy import BigInteger, ForeignKey, Date, Integer, PrimaryKeyConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import date, datetime
@@ -10,6 +12,9 @@ from app.modules.common.models import (
 )
 from app.modules.nsi.models import Ugds, TaxRegimes, RegTypes, RiskDegrees
 from app.modules.ext.okeds.models import Okeds
+
+if TYPE_CHECKING:
+    from app.modules.orders.models import Risks
 
 
 class Organizations(BaseModelWithShapePoint):
@@ -82,6 +87,12 @@ class Organizations(BaseModelWithShapePoint):
 
     kkms: Mapped[list["Kkms"]] = relationship(
         back_populates="organization", lazy="selectin"
+    )
+    orders_risks: Mapped[List["Risks"]] = relationship(
+        "app.modules.orders.models.Risks",
+        foreign_keys="[Risks.organization_id]",
+        lazy="selectin",
+        viewonly=True,
     )
     risk_info: Mapped["RiskInfos"] = relationship(
         back_populates="organization", lazy="selectin"

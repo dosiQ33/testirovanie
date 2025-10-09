@@ -741,16 +741,12 @@ class FnoStatisticsRouter(APIRouter):
     @sub_router.get("/count/aggregation/by-regions", response_model=FnoStatisticsDto)
     @cache(expire=cache_ttl, key_builder=request_key_builder)  # Кэширование на 24 часа
     async def get_fno_statistics(
-        count_dto: Annotated[CountByTerritoryAndRegionsDto, Query()],
+        count_dto: Annotated[CountByYearAndRegionsDto, Query()],
         session: AsyncSession = Depends(get_session_without_commit),
     ):
-        current_year = (
-            2025  # как я понял пока будет возможность только посмотреть 2025-2024 года
-        )
-        prev_year = 2024
 
         result = await FnoRepo(session).get_fno_aggregation_statistics(
-            filters=count_dto, current_year=current_year, prev_year=prev_year
+            filters=count_dto
         )
 
         return FnoStatisticsDto(**result._mapping)
@@ -758,19 +754,19 @@ class FnoStatisticsRouter(APIRouter):
     @sub_router.get("/bar-chart", response_model=FnoBarChartDto)
     @cache(expire=cache_ttl, key_builder=request_key_builder)  # Кэширование на 24 часа
     async def get_fno_bar_chart(
-        count_dto: Annotated[CountByTerritoryAndRegionsDto, Query()],
+        count_dto: Annotated[CountByYearAndRegionsDto, Query()],
         session: AsyncSession = Depends(get_session_without_commit),
     ):
         """Get FNO data by individual fields for bar chart visualization"""
         prev_year = 2024  # Previous year as specified
 
         chart_data = await FnoRepo(session).get_fno_bar_chart_data(
-            filters=count_dto, year=prev_year
+            filters=count_dto,
         )
 
         return FnoBarChartDto(
             title="Оборот по ФНО за предыдущий год",
-            year=prev_year,
+            year=count_dto.year,
             data=[FnoBarChartItemDto(**item) for item in chart_data],
         )
 

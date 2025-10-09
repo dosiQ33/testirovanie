@@ -63,6 +63,7 @@ from .models import (
     EsfSellerMonth,
     Fno,
     FnoTypes,
+    Last10Receipts,
     Organizations,
     Kkms,
     Otps,
@@ -705,7 +706,8 @@ class FnoRepo(BaseWithOrganizationRepository):
     model = Fno
 
     async def get_fno_aggregation_statistics(
-        self, filters: CountByTerritoryAndRegionsDto, current_year: int, prev_year: int
+        self,
+        filters: CountByYearAndRegionsDto,
     ):
         try:
             turnover_expr = (
@@ -722,26 +724,16 @@ class FnoRepo(BaseWithOrganizationRepository):
                 + Fno.fno_920_00
             )
 
-            query = select(
-                func.coalesce(
-                    func.sum(
-                        case(
-                            (Fno.year == current_year, turnover_expr),
-                            else_=0.0,
-                        )
-                    ),
-                    0.0,
-                ).label("turnover_current_year"),
-                func.coalesce(
-                    func.sum(
-                        case(
-                            (Fno.year == prev_year, turnover_expr),
-                            else_=0.0,
-                        )
-                    ),
-                    0.0,
-                ).label("turnover_prev_year"),
-            ).select_from(Fno)
+            query = (
+                select(
+                    func.coalesce(
+                        func.sum(turnover_expr),
+                        0.0,
+                    ).label("turnover_current_year"),
+                )
+                .select_from(Fno)
+                .where(Fno.year == filters.year)
+            )
 
             if filters.region != RegionEnum.rk:
                 territory_geom = territory_to_geo_element(
@@ -761,9 +753,7 @@ class FnoRepo(BaseWithOrganizationRepository):
             )
             raise
 
-    async def get_fno_bar_chart_data(
-        self, filters: CountByTerritoryAndRegionsDto, year: int
-    ):
+    async def get_fno_bar_chart_data(self, filters: CountByYearAndRegionsDto):
         """Get FNO data by individual fields for bar chart"""
         try:
             # Define FNO fields and their codes
@@ -790,7 +780,9 @@ class FnoRepo(BaseWithOrganizationRepository):
                     )
                 )
 
-            query = select(*select_items).select_from(Fno).where(Fno.year == year)
+            query = (
+                select(*select_items).select_from(Fno).where(Fno.year == filters.year)
+            )
 
             # Apply territory filter if not RK
             if filters.region != RegionEnum.rk:
@@ -1486,6 +1478,34 @@ class ReceiptsRepo(BaseWithKkmRepository):
         self, limit: int = 100, filters: Optional[ReceiptsLatestFilterDto] = None
     ):
         try:
+            if filters is None:
+                filters = ReceiptsLatestFilterDto(include_today_filter=True)
+
+            if filters.kkm_id is not None:
+                return await self._get_latest_from_last10_table(
+                    kkm_id=filters.kkm_id, limit=limit
+                )
+
+            if filters.organization_id is not None:
+                return await self._get_latest_from_last10_by_organization(
+                    organization_id=filters.organization_id, limit=limit
+                )
+
+            return await self._get_latest_standard_query(filters, limit)
+
+        except SQLAlchemyError as e:
+            logger.error(f"Ошибка при получении чеков с деталями: {e}")
+            raise
+
+    async def _get_latest_from_last10_table(self, kkm_id: int, limit: int = 10):
+        try:
+            last10_subquery = (
+                select(Last10Receipts)
+                .where(Last10Receipts.kkms_id == kkm_id)
+                .order_by(desc(Last10Receipts.operation_date))
+                .limit(limit)
+            ).subquery("l")
+
             query = (
                 select(
                     Receipts.fiskal_sign,
@@ -1501,27 +1521,94 @@ class ReceiptsRepo(BaseWithKkmRepository):
                     Receipts.item_nds,
                     Receipts.payment_type,
                 )
-                .select_from(Receipts)
-                .outerjoin(Kkms, Kkms.id == Receipts.kkms_id)
-                .outerjoin(Organizations, Organizations.id == Kkms.organization_id)
+                .select_from(last10_subquery)
+                .join(
+                    Receipts,
+                    and_(
+                        Receipts.kkms_id == last10_subquery.c.kkms_id,
+                        Receipts.fiskal_sign == last10_subquery.c.fiskal_sign,
+                    ),
+                )
+                .join(Kkms, Kkms.id == last10_subquery.c.kkms_id)
+                .join(Organizations, Organizations.id == Kkms.organization_id)
+                .order_by(desc(last10_subquery.c.operation_date))
             )
 
-            # Если фильтры не переданы, создаем дефолтный фильтр для обратной совместимости
-            if filters is None:
-                filters = ReceiptsLatestFilterDto(include_today_filter=True)
+            result = await self._session.execute(query)
+            records = result.all()
 
-            # Применяем фильтры
+            logger.info(
+                f"Найдено {len(records)} чеков через last_10 для kkm_id={kkm_id}"
+            )
+            return [dict(record._mapping) for record in records]
+
+        except SQLAlchemyError as e:
+            logger.error(f"Ошибка при получении чеков через last_10: {e}")
+            raise
+
+    async def _get_latest_from_last10_by_organization(
+        self, organization_id: int, limit: int = 100
+    ):
+        try:
+            kkm_ids_subquery = (
+                select(Kkms.id).where(Kkms.organization_id == organization_id)
+            ).scalar_subquery()
+
+            last10_subquery = (
+                select(Last10Receipts)
+                .where(Last10Receipts.kkms_id.in_(kkm_ids_subquery))
+                .order_by(desc(Last10Receipts.operation_date))
+                .limit(limit)
+            ).subquery("l")
+
+            query = (
+                select(
+                    Receipts.fiskal_sign,
+                    Kkms.reg_number,
+                    Receipts.full_item_price,
+                    Kkms.serial_number,
+                    Receipts.operation_date,
+                    Organizations.name_ru,
+                    Kkms.address,
+                    Receipts.item_name,
+                    Receipts.item_price,
+                    Receipts.item_count,
+                    Receipts.item_nds,
+                    Receipts.payment_type,
+                )
+                .select_from(last10_subquery)
+                .join(
+                    Receipts,
+                    and_(
+                        Receipts.kkms_id == last10_subquery.c.kkms_id,
+                        Receipts.fiskal_sign == last10_subquery.c.fiskal_sign,
+                    ),
+                )
+                .join(Kkms, Kkms.id == last10_subquery.c.kkms_id)
+                .join(Organizations, Organizations.id == Kkms.organization_id)
+                .order_by(desc(last10_subquery.c.operation_date))
+            )
+
+            result = await self._session.execute(query)
+            records = result.all()
+
+            logger.info(
+                f"Найдено {len(records)} чеков через last_10 для organization_id={organization_id}"
+            )
+            return [dict(record._mapping) for record in records]
+
+        except SQLAlchemyError as e:
+            logger.error(
+                f"Ошибка при получении чеков через last_10 для организации: {e}"
+            )
+            raise
+
+    async def _get_latest_standard_query(
+        self, filters: ReceiptsLatestFilterDto, limit: int
+    ):
+        try:
             where_conditions = []
 
-            # Фильтр по ККМ
-            if filters.kkm_id is not None:
-                where_conditions.append(Receipts.kkms_id == filters.kkm_id)
-
-            # Фильтр по организации
-            if filters.organization_id is not None:
-                where_conditions.append(Kkms.organization_id == filters.organization_id)
-
-            # Фильтр по дате (применяется по умолчанию, если не указано иное)
             if filters.include_today_filter:
                 where_conditions.extend(
                     [
@@ -1532,37 +1619,56 @@ class ReceiptsRepo(BaseWithKkmRepository):
                     ]
                 )
 
-            # Применяем все условия
-            if where_conditions:
-                query = query.where(and_(*where_conditions))
+            receipts_subquery = (
+                select(
+                    Receipts.kkms_id,
+                    Receipts.fiskal_sign,
+                    func.max(Receipts.operation_date).label("operation_date"),
+                )
+                .where(and_(*where_conditions) if where_conditions else True)
+                .group_by(Receipts.kkms_id, Receipts.fiskal_sign)
+                .order_by(desc(func.max(Receipts.operation_date)))
+                .limit(limit)
+            ).subquery("r_sub")
 
-            query = query.order_by(desc(Receipts.operation_date)).limit(limit)
+            query = (
+                select(
+                    Receipts.fiskal_sign,
+                    Kkms.reg_number,
+                    Receipts.full_item_price,
+                    Kkms.serial_number,
+                    Receipts.operation_date,
+                    Organizations.name_ru,
+                    Kkms.address,
+                    Receipts.item_name,
+                    Receipts.item_price,
+                    Receipts.item_count,
+                    Receipts.item_nds,
+                    Receipts.payment_type,
+                )
+                .select_from(receipts_subquery)
+                .join(
+                    Receipts,
+                    and_(
+                        Receipts.kkms_id == receipts_subquery.c.kkms_id,
+                        Receipts.fiskal_sign == receipts_subquery.c.fiskal_sign,
+                    ),
+                )
+                .join(Kkms, Kkms.id == Receipts.kkms_id)
+                .join(Organizations, Organizations.id == Kkms.organization_id)
+                .order_by(desc(receipts_subquery.c.operation_date))
+            )
 
             result = await self._session.execute(query)
             records = result.all()
 
-            # Правильное описание фильтра для логирования
-            filter_parts = []
-            if filters.kkm_id:
-                filter_parts.append(f"ККМ ID {filters.kkm_id}")
-            if filters.organization_id:
-                filter_parts.append(f"организация ID {filters.organization_id}")
-            if filters.include_today_filter:
-                filter_parts.append("только сегодняшние")
-            else:
-                filter_parts.append("все записи")
-
-            filter_description = (
-                ", ".join(filter_parts) if filter_parts else "все записи"
-            )
-
             logger.info(
-                f"Найдено {len(records)} записей чеков с деталями ({filter_description})."
+                f"Найдено {len(records)} чеков стандартным запросом (date filter)"
             )
-
             return [dict(record._mapping) for record in records]
+
         except SQLAlchemyError as e:
-            logger.error(f"Ошибка при получении чеков с деталями: {e}")
+            logger.error(f"Ошибка при стандартном запросе чеков: {e}")
             raise
 
 

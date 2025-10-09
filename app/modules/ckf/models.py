@@ -554,3 +554,19 @@ class Violations(BasestModel):
 
     kkm: Mapped["Kkms"] = relationship("Kkms", lazy="selectin")
     szpt: Mapped["DicSzpt"] = relationship("DicSzpt", lazy="selectin")
+
+
+class Last10Receipts(BasestModel):
+    __tablename__ = "last_10"
+    __table_args__ = (
+        PrimaryKeyConstraint("kkms_id", "fiskal_sign"),
+        dict(comment="Последние 10 чеков по каждому ККМ"),
+    )
+
+    kkms_id: Mapped[int] = mapped_column(BigInteger, comment="ККМ ID", nullable=False)
+    fiskal_sign: Mapped[int] = mapped_column(
+        BigInteger, comment="Фискальный признак", nullable=True
+    )
+    operation_date: Mapped[datetime] = mapped_column(
+        comment="Дата операции", nullable=False
+    )

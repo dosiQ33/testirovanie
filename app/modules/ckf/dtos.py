@@ -155,7 +155,6 @@ class FnoDto(BaseDto):
 
 class FnoStatisticsDto(BasestDto):
     turnover_current_year: float
-    turnover_prev_year: float
 
 
 class FnoBarChartItemDto(BasestDto):
@@ -464,8 +463,6 @@ class SzptRegionRequestDto(BasestDto):
 
 
 class RiskBboxDto(BasestDto):
-    """DTO для отображения рисков в bbox со справочной информацией"""
-
     risk_type_id: Optional[int] = None
     risk_type_name: Optional[str] = None
 

@@ -7,7 +7,8 @@ from ..customs.models import CustomsOffices
 from .models import (
     Roads,
     RoadTypes,
-    Cameras
+    Cameras,
+    RoadServices
 )
 
 from ..transport.models import Vehicles
@@ -68,4 +69,70 @@ class RoadsRepo(BaseRepository):
 
         return response
 
-        
+class RoadServicesRepo(BaseRepository):
+    model = RoadServices
+
+    async def get_road_services_reg_info(self, service_id: int):
+        query = (
+            select(
+                RoadServices.owner_name,
+                RoadServices.owner_contact,
+                RoadServices.ods_category,
+                RoadServices.commissioning_year
+            )
+            .where(RoadServices.id == service_id)
+        )
+
+        result = await self._session.execute(query)
+        response = result.mappings().one()
+
+        return response
+    
+    async def get_road_services_geo_info(self, service_id: int):
+        query = (
+            select(
+                RoadServices.region,
+                RoadServices.segment_index,
+                Roads.name,
+                RoadServices.km_mark,
+                RoadServices.placement_side,
+                RoadServices.reverse_km_mark
+            )
+            .join(Roads, RoadServices.road_id == Roads.id)
+            .where(RoadServices.id == service_id)
+        )
+
+        result = await self._session.execute(query)
+        response = result.mappings().one()
+
+        return response
+    
+    async def get_road_services_infrastructure(self, service_id: int):
+        query = (
+            select(
+                RoadServices.land_allocation,
+                RoadServices.engineering_networks,
+                RoadServices.exits,
+                RoadServices.fuel_station,
+                RoadServices.motel,
+                RoadServices.toilet,
+                RoadServices.food_point,
+                RoadServices.retail_point,
+                RoadServices.showers,
+                RoadServices.service_station,
+                RoadServices.car_wash,
+                RoadServices.medical_point,
+                RoadServices.parking,
+                RoadServices.guarded_parking,
+                RoadServices.entertainment_zone,
+                RoadServices.picnic_area,
+                RoadServices.accessible_facilities,
+                RoadServices.video_surveillance
+            )
+            .where(RoadServices.id == service_id)
+        )
+
+        result = await self._session.execute(query)
+        response = result.mappings().one()
+
+        return response

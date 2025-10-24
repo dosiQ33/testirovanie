@@ -1,11 +1,11 @@
-from sqlalchemy import ForeignKey, Text
+from sqlalchemy import ForeignKey, Text, Integer
 from sqlalchemy.dialects.postgresql import INTERVAL
 from sqlalchemy.orm import Mapped, mapped_column
 from datetime import date, datetime
 from decimal import Decimal
 from geoalchemy2 import Geometry, WKBElement
 
-from app.modules.common.models import BaseModel
+from app.modules.common.models import BaseModel, BasestModel
 
 db_schema = "ckl"
 
@@ -354,3 +354,32 @@ class WarehouseTypes(BaseModel):
 
     name_kk: Mapped[str | None] = mapped_column(name="name_kk", comment="Наименование на казахском языке", nullable=True)
     name_ru: Mapped[str | None] = mapped_column(name="name_ru", comment="Наименование на русском языке", nullable=True)
+
+class CustomsCarriers(BasestModel):
+    __tablename__ = 'customs_carriers'
+    __table_args__ = dict(schema=db_schema)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    country_id: Mapped[int] = mapped_column(ForeignKey('ckl.countries.id'), comment='Ссылка на countries', nullable=False)
+    doc_number: Mapped[str] = mapped_column(name='doc_number', comment='Номер документа, подтверждающего включение в реестр таможенных перевозчиков', nullable=False)
+    date_start: Mapped[date] = mapped_column(name='date_start', comment='Дата включения в реестр таможенных перевозчиков', nullable=False)
+    address: Mapped[str] = mapped_column(name='address', comment='Адрес или описание местоположения', nullable=False)
+    organization_id: Mapped[int] = mapped_column(ForeignKey('public.organizations.id'), comment='Связь с таблицей организации по iin_bin', nullable=False)
+    contact_information: Mapped[str] = mapped_column(name='contact_information', comment='Местонахождение таможенного перевозчика, почтовый адрес, телефон, сайт в интернете, адрес электронной почты', nullable=True)
+    iin_bin: Mapped[str] = mapped_column(name='iin_bin', comment='ИНН/УНП/РНН', nullable=False)
+    document_number: Mapped[str] = mapped_column(name='document_number', comment='Номер документа, подтверждающего обеспечение уплаты таможенных пошлин, налогов', nullable=True)
+    document_date_end: Mapped[date] = mapped_column(name='document_date_end', comment='Дата окончания срока действия документа, подтверждающего обеспечение уплаты таможенных пошлин, налогов', nullable=True)
+    customs_offices_id: Mapped[int] = mapped_column(ForeignKey('ckl.customs_offices.id'), comment='Код таможенного органа включившего юридическое лицо в реестр таможенных перевозчиков (ссылка на customs_offices)', nullable=True)
+    other_information: Mapped[str] = mapped_column(name='other_information', comment='Дополнительная информация', nullable=True)
+
+
+class RepresentOffices(BaseModel):
+    __tablename__ = 'represent_offices'
+    __table_args__ = dict(schema=db_schema)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    country_id: Mapped[int] = mapped_column(ForeignKey('ckl.countries.id'), comment='Ссылка на countries', nullable=False)
+    doc_number: Mapped[str] = mapped_column(name='doc_number', comment='Номер документа, подтверждающего включение в реестр таможенных представительств', nullable=False)
+    doc_date: Mapped[date] = mapped_column(name='doc_date', comment='Дата документа включения в реестр таможенных представительств', nullable=False)
+    organization_id: Mapped[int] = mapped_column(ForeignKey('public.organizations.id'), comment='Связь с таблицей организации по iin_bin', nullable=False)
+    iin_bin: Mapped[str] = mapped_column(name='iin_bin', comment='ИИН/БИН', nullable=False)

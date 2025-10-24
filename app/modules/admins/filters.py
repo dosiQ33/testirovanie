@@ -2,7 +2,7 @@ from typing import Optional
 from datetime import datetime
 from fastapi_filter import FilterDepends, with_prefix
 from fastapi_filter.contrib.sqlalchemy import Filter
-from .models import Employees, DicUl, DicRoles, DicFl
+from .models import DicIndicators, Employees, DicUl, DicRoles, DicFl
 
 
 class DicUlFilter(Filter):
@@ -67,3 +67,12 @@ class EmployeesFilter(Filter):
     class Constants(Filter.Constants):
         model = Employees
         search_model_fields = ["login", "employee_position", "employee_department"]
+
+
+class DicIndicatorsFilter(Filter):
+    id: Optional[int] = None
+    name: Optional[str] = None
+
+    class Constants(Filter.Constants):
+        model = DicIndicators
+        search_model_fields = ["name"]

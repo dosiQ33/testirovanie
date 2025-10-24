@@ -37,6 +37,7 @@ class VehiclesRepo(BaseRepository):
                 TransportCompanies.name.label('company_name'),
                 VehicleMakes.name_ru.label('vehicle_make'),
                 Vehicles.year,
+                Vehicles.registration_date,
                 Countries.name_ru.label('registration_country'),
                 Vehicles.is_active,
                 Roads.name,

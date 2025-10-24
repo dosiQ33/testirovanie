@@ -1,4 +1,4 @@
-from typing import Optional, Self
+from typing import List, Optional, Self
 from datetime import datetime, date
 from app.modules.common.dto import BasestDto
 from pydantic import model_validator
@@ -54,6 +54,18 @@ class DicFlDto(BasestDto):
     blocked: Optional[bool] = None
 
 
+class DicIndicatorsDto(BasestDto):
+    id: int
+    name: Optional[str] = None
+
+
+class EmployeeIndicatorDto(BasestDto):
+    indicator_id: int
+    assigned_at: Optional[datetime] = None
+    assigned_by: Optional[int] = None
+    indicator: Optional[DicIndicatorsDto] = None
+
+
 class EmployeesDto(BasestDto):
     id: int
     fl_id: Optional[int] = None
@@ -72,6 +84,7 @@ class EmployeesDto(BasestDto):
     fl: Optional[DicFlDto] = None
     ul: Optional[DicUlDto] = None
     role_ref: Optional[DicRolesDto] = None
+    indicators: Optional[List[EmployeeIndicatorDto]] = None
 
 
 class DicUlCreateDto(BasestDto):
@@ -116,6 +129,7 @@ class EmployeesCreateDto(BasestDto):
     employee_position: Optional[str] = None
     employee_department: Optional[str] = None
     employee_status: Optional[str] = None
+    indicator_ids: Optional[List[int]] = None
 
     @model_validator(mode="after")
     def hash_password(self) -> Self:
@@ -160,6 +174,7 @@ class EmployeesUpdateDto(BasestDto):
     employee_position: Optional[str] = None
     employee_department: Optional[str] = None
     employee_status: Optional[str] = None
+    indicator_ids: Optional[List[int]] = None
 
     @model_validator(mode="after")
     def hash_password(self) -> Self:

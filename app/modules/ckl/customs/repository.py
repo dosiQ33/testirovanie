@@ -25,8 +25,11 @@ from .models import (
     SendersRecipients,
     TransitTypes,
     WarehouseTypes,
+    CustomsCarriers, 
+    RepresentOffices
 )
 
+from app.modules.ckf.models import Organizations, Okeds, TaxRegimes
 
 # Simple lookup repositories
 class BookingStatusesRepo(BaseRepository):
@@ -396,3 +399,68 @@ class SendersRecipientsRepo(BaseRepository):
         query = select(self.model).where(self.model.name.ilike(f"%{name_pattern}%")).order_by(self.model.name)
         result = await self._session.execute(query)
         return result.scalars().all()
+
+class CustomsCarriersRepo(BaseRepository):
+    model = CustomsCarriers
+
+    async def get_base_info(self, customs_id: int): 
+        query = select(
+            Organizations.name_ru.label('organization_name'),
+            CustomsCarriers.iin_bin,
+            Organizations.address,
+            CustomsCarriers.contact_information,
+            Okeds.name_ru.label('oked_name'),
+            TaxRegimes.name.label('tax_regime'),
+            CustomsCarriers.doc_number,
+            CustomsCarriers.date_start,
+            CustomsOffices.name_ru.label('customs_office_name'),
+            CustomsCarriers.document_number,
+            CustomsCarriers.document_date_end,
+            CustomsCarriers.other_information
+        ).join(
+            Organizations,
+            CustomsCarriers.organization_id == Organizations.id
+        ).join(
+            TaxRegimes,
+            Organizations.tax_regime_id == TaxRegimes.id
+        ).join(
+            Okeds,
+            Organizations.oked_id == Okeds.id
+        ).join(
+            CustomsOffices,
+            CustomsCarriers.customs_offices_id == CustomsOffices.id
+        ).where(CustomsCarriers.id == customs_id)
+
+        result = await self._session.execute(query)
+        response = result.mappings().one_or_none()
+
+        return response
+        
+
+class RepresentOfficesRepo(BaseRepository):
+    model = RepresentOffices
+
+    async def get_base_info(self, office_id: int):
+        query = select(
+            Organizations.name_ru,
+            RepresentOffices.iin_bin,
+            Organizations.address,
+            Okeds.name_ru,
+            TaxRegimes.name,
+            RepresentOffices.doc_number,
+            RepresentOffices.doc_date
+        ).select_from(RepresentOffices).join(
+            Organizations,
+            RepresentOffices.organization_id == Organizations.id
+        ).join(
+            TaxRegimes,
+            Organizations.tax_regime_id == TaxRegimes.id
+        ).join(
+            Okeds,
+            Organizations.oked_id == Okeds.id
+        ).where(RepresentOffices.id == office_id)
+
+        result = await self._session.execute(query)
+        response = result.mappings().one_or_none()
+
+        return response

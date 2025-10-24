@@ -1,4 +1,5 @@
 from typing import Annotated, List, Optional
+from app.modules.admins.deps import get_current_employee
 from fastapi import APIRouter, Query, status, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -9,6 +10,7 @@ from loguru import logger
 from app.database.deps import get_session_with_commit
 from app.modules.common.router import BaseCRUDRouter, request_key_builder, cache_ttl
 from .dtos import (
+    DicIndicatorsDto,
     EmployeesDto,
     DicUlDto,
     DicRolesDto,
@@ -21,9 +23,21 @@ from .dtos import (
     EmployeesCreateDto,
     EmployeesUpdateDto,
 )
-from .models import Employees, DicUl, DicRoles, DicFl
-from .repository import EmployeesRepo, DicUlRepo, DicRolesRepo, DicFlRepo
-from .filters import EmployeesFilter, DicUlFilter, DicRolesFilter, DicFlFilter
+from .models import DicIndicators, Employees, DicUl, DicRoles, DicFl
+from .repository import (
+    DicIndicatorsRepo,
+    EmployeesRepo,
+    DicUlRepo,
+    DicRolesRepo,
+    DicFlRepo,
+)
+from .filters import (
+    DicIndicatorsFilter,
+    EmployeesFilter,
+    DicUlFilter,
+    DicRolesFilter,
+    DicFlFilter,
+)
 from app.modules.admins.auth import router as auth_router
 
 router = APIRouter(prefix="/admins")
@@ -388,6 +402,15 @@ class EmployeesRouter(APIRouter):
         - **employee_department**: отдел
         - **employee_status**: статус сотрудника
         """
+        if data.indicator_ids:
+            for indicator_id in data.indicator_ids:
+                indicator = await DicIndicatorsRepo(session).get_one_by_id(indicator_id)
+                if not indicator:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=f"Показатель с ID {indicator_id} не найден",
+                    )
+
         if data.login:
             existing_employees = await EmployeesRepo(session).filter_employees(
                 EmployeesFilterDto(login=data.login)
@@ -446,6 +469,15 @@ class EmployeesRouter(APIRouter):
         - **employee_department**: отдел
         - **employee_status**: статус сотрудника
         """
+        if data.indicator_ids is not None:
+            for indicator_id in data.indicator_ids:
+                indicator = await DicIndicatorsRepo(session).get_one_by_id(indicator_id)
+                if not indicator:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=f"Показатель с ID {indicator_id} не найден",
+                    )
+
         if data.login:
             existing_employees = await EmployeesRepo(session).filter_employees(
                 EmployeesFilterDto(login=data.login)
@@ -504,8 +536,26 @@ class EmployeesRouter(APIRouter):
             )
 
 
+class DicIndicatorsRouter(APIRouter):
+    sub_router = APIRouter(prefix="/dic-indicators", tags=["admins: dic-indicators"])
+    base_router = BaseCRUDRouter(
+        "dic-indicators",
+        DicIndicators,
+        DicIndicatorsRepo,
+        DicIndicatorsDto,
+        DicIndicatorsFilter,
+        tags=["admins: dic-indicators"],
+    )
+
+    def __init__(self):
+        super().__init__()
+        self.include_router(self.sub_router)
+        self.include_router(self.base_router)
+
+
 router.include_router(auth_router)
 router.include_router(dic_roles_router)
 router.include_router(DicFlRouter())
 router.include_router(DicUlRouter())
 router.include_router(EmployeesRouter())
+router.include_router(DicIndicatorsRouter())

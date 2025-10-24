@@ -141,3 +141,44 @@ class Employees(BasestModel):
         foreign_keys=[role],
         primaryjoin="Employees.role == DicRoles.id",
     )
+    indicators: Mapped[list["EmployeeIndicators"]] = relationship(
+        "EmployeeIndicators",
+        lazy="selectin",
+        foreign_keys="[EmployeeIndicators.employee_id]",
+        cascade="all, delete-orphan",
+    )
+
+
+class DicIndicators(BasestModel):
+    __tablename__ = "dic_indicators"
+    __table_args__ = dict(schema="admin", comment="Справочник показателей")
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    name: Mapped[Optional[str]] = mapped_column(Text, comment="Название показателя")
+
+
+class EmployeeIndicators(BasestModel):
+    __tablename__ = "employee_indicators"
+    __table_args__ = dict(schema="admin", comment="Показатели сотрудников")
+
+    employee_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("admin.employees.id"), primary_key=True
+    )
+    indicator_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("admin.dic_indicators.id"), primary_key=True
+    )
+    assigned_at: Mapped[datetime] = mapped_column(
+        comment="Дата назначения",
+        server_default=func.now(),
+        default=func.now(),
+    )
+    assigned_by: Mapped[Optional[int]] = mapped_column(
+        BigInteger, comment="Назначен пользователем ID"
+    )
+
+    # Relationships
+    indicator: Mapped["DicIndicators"] = relationship(
+        "DicIndicators",
+        lazy="selectin",
+        foreign_keys=[indicator_id],
+    )

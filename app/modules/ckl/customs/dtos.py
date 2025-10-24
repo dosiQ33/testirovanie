@@ -2,7 +2,7 @@ from datetime import date, datetime
 from typing import Optional
 from decimal import Decimal
 
-from app.modules.common.dto import BaseDto, DtoWithShape
+from app.modules.common.dto import BaseDto, DtoWithShape, BasestDto
 from app.modules.common.utils import SerializedGeojson
 
 
@@ -203,3 +203,28 @@ class SendersRecipientsDto(BaseDto):
     email: str
     contact_person: Optional[str] = None
     is_active: Optional[bool] = None
+
+class CustomsCarriersDto(BasestDto):
+
+    id: int
+    country_id: int
+    doc_number: str
+    date_start: date
+    address: str
+    organization_id: int
+    contact_information: str
+    iin_bin: str
+    document_number: str
+    document_date_end: date
+    customs_offices_id: int
+    other_information: str
+
+
+class RepresentOfficesDto(BasestDto):
+
+    id: int
+    country_id: int
+    doc_number: str
+    doc_date: date
+    organization_id: int
+    iin_bin: str

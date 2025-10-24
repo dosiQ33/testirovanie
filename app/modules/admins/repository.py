@@ -4,7 +4,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from loguru import logger
 
 from app.modules.common.repository import BaseRepository
-from .models import Employees, DicUl, DicRoles, DicFl
+from .models import DicIndicators, EmployeeIndicators, Employees, DicUl, DicRoles, DicFl
 from .dtos import (
     EmployeesFilterDto,
     DicFlCreateDto,
@@ -358,13 +358,28 @@ class EmployeesRepo(BaseRepository):
             logger.error(f"Ошибка при поиске сотрудников: {e}")
             raise
 
-    async def create(self, data: EmployeesCreateDto) -> Employees:
+    async def create(
+        self, data: EmployeesCreateDto, assigned_by: Optional[int] = None
+    ) -> Employees:
         """Создать нового сотрудника"""
         try:
-            new_record = self.model(**data.model_dump(exclude_unset=True))
+            indicator_ids = data.indicator_ids
+            employee_data = data.model_dump(
+                exclude_unset=True, exclude={"indicator_ids"}
+            )
+
+            new_record = self.model(**employee_data)
             self._session.add(new_record)
             await self._session.flush()
             await self._session.refresh(new_record)
+
+            if indicator_ids:
+                indicators_repo = EmployeeIndicatorsRepo(self._session)
+                await indicators_repo.add_indicators_to_employee(
+                    new_record.id, indicator_ids
+                )
+                await self._session.refresh(new_record)
+
             logger.info(f"Создан новый сотрудник с ID {new_record.id}")
             return new_record
         except SQLAlchemyError as e:
@@ -372,7 +387,7 @@ class EmployeesRepo(BaseRepository):
             raise
 
     async def update_by_id(
-        self, id: int, data: EmployeesUpdateDto
+        self, id: int, data: EmployeesUpdateDto, assigned_by: Optional[int] = None
     ) -> Optional[Employees]:
         """Обновить сотрудника по ID"""
         try:
@@ -380,7 +395,9 @@ class EmployeesRepo(BaseRepository):
             if not existing_record:
                 return None
 
-            update_data = data.model_dump(exclude_unset=True)
+            indicator_ids = data.indicator_ids
+            update_data = data.model_dump(exclude_unset=True, exclude={"indicator_ids"})
+
             if update_data:
                 stmt = (
                     update(self.model).where(self.model.id == id).values(**update_data)
@@ -388,11 +405,15 @@ class EmployeesRepo(BaseRepository):
                 await self._session.execute(stmt)
                 await self._session.flush()
 
-                updated_record = await self.get_one_by_id(id)
-                logger.info(f"Обновлен сотрудник с ID {id}")
-                return updated_record
+            if indicator_ids is not None:
+                indicators_repo = EmployeeIndicatorsRepo(self._session)
+                await indicators_repo.delete_by_employee_id(id)
+                if indicator_ids:
+                    await indicators_repo.add_indicators_to_employee(id, indicator_ids)
 
-            return existing_record
+            updated_record = await self.get_one_by_id(id)
+            logger.info(f"Обновлен сотрудник с ID {id}")
+            return updated_record
         except SQLAlchemyError as e:
             logger.error(f"Ошибка при обновлении сотрудника с ID {id}: {e}")
             raise
@@ -427,4 +448,66 @@ class EmployeesRepo(BaseRepository):
             return record
         except SQLAlchemyError as e:
             logger.error(f"Ошибка при поиске сотрудника по логину {login}: {e}")
+            raise
+
+
+class DicIndicatorsRepo(BaseRepository):
+    model = DicIndicators
+
+
+class EmployeeIndicatorsRepo(BaseRepository):
+    model = EmployeeIndicators
+
+    async def get_by_employee_id(self, employee_id: int) -> List[EmployeeIndicators]:
+        """Получить все показатели сотрудника"""
+        try:
+            query = select(self.model).filter_by(employee_id=employee_id)
+            result = await self._session.execute(query)
+            records = result.unique().scalars().all()
+            logger.info(
+                f"Найдено {len(records)} показателей для сотрудника {employee_id}"
+            )
+            return records
+        except SQLAlchemyError as e:
+            logger.error(f"Ошибка при поиске показателей сотрудника {employee_id}: {e}")
+            raise
+
+    async def delete_by_employee_id(self, employee_id: int) -> bool:
+        """Удалить все показатели сотрудника"""
+        try:
+            stmt = delete(self.model).where(self.model.employee_id == employee_id)
+            result = await self._session.execute(stmt)
+            await self._session.flush()
+            logger.info(f"Удалены показатели сотрудника {employee_id}")
+            return result.rowcount > 0
+        except SQLAlchemyError as e:
+            logger.error(
+                f"Ошибка при удалении показателей сотрудника {employee_id}: {e}"
+            )
+            raise
+
+    async def add_indicators_to_employee(
+        self, employee_id: int, indicator_ids: List[int]
+    ) -> List[EmployeeIndicators]:
+        """Добавить показатели к сотруднику"""
+        try:
+            new_indicators = []
+            for indicator_id in indicator_ids:
+                indicator = self.model(
+                    employee_id=employee_id,
+                    indicator_id=indicator_id,
+                )
+                new_indicators.append(indicator)
+
+            self._session.add_all(new_indicators)
+            await self._session.flush()
+
+            logger.info(
+                f"Добавлено {len(new_indicators)} показателей к сотруднику {employee_id}"
+            )
+            return new_indicators
+        except SQLAlchemyError as e:
+            logger.error(
+                f"Ошибка при добавлении показателей к сотруднику {employee_id}: {e}"
+            )
             raise

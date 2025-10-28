@@ -14,8 +14,6 @@ class GtinNpDto(BasestDto):
     full_price: Optional[float] = None
     full_count: Optional[float] = None
 
-    organization: Optional[OrganizationDto] = None
-
 
 class GtinKkmsDto(BasestDto):
     """DTO для GTIN по ККМ"""
@@ -27,8 +25,6 @@ class GtinKkmsDto(BasestDto):
     item_name: Optional[str] = None
     full_price: Optional[float] = None
     full_count: Optional[float] = None
-
-    kkm: Optional[KkmsDto] = None
 
 
 class GtinNpFilterDto(BasestDto):

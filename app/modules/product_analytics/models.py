@@ -14,16 +14,13 @@ class GtinNp(BasestModel):
     __table_args__ = dict(schema="public", comment="GTIN по налогоплательщикам")
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-
     dtype: Mapped[str] = mapped_column(comment="Тип данных", nullable=True)
-
     org_id: Mapped[int] = mapped_column(
         BigInteger,
         ForeignKey("organizations.id"),
         comment="ID организации",
         nullable=True,
     )
-
     gtin: Mapped[str] = mapped_column(comment="GTIN код", nullable=True)
     item_name: Mapped[str] = mapped_column(comment="Наименование товара", nullable=True)
     full_price: Mapped[float] = mapped_column(
@@ -33,9 +30,8 @@ class GtinNp(BasestModel):
         Float, comment="Полное количество", nullable=True
     )
 
-    # Relationships
     organization: Mapped["Organizations"] = relationship(
-        "Organizations", foreign_keys=[org_id], lazy="selectin"
+        "Organizations", foreign_keys=[org_id], lazy="noload"
     )
 
 
@@ -44,13 +40,10 @@ class GtinKkms(BasestModel):
     __table_args__ = dict(schema="public", comment="GTIN по ККМ")
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-
     dtype: Mapped[str] = mapped_column(comment="Тип данных", nullable=True)
-
     kkms_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("kkms.id"), comment="ID ККМ", nullable=True
     )
-
     gtin: Mapped[str] = mapped_column(comment="GTIN код", nullable=True)
     item_name: Mapped[str] = mapped_column(comment="Наименование товара", nullable=True)
     full_price: Mapped[float] = mapped_column(
@@ -60,5 +53,4 @@ class GtinKkms(BasestModel):
         Float, comment="Полное количество", nullable=True
     )
 
-    # Relationships
-    kkm: Mapped["Kkms"] = relationship("Kkms", foreign_keys=[kkms_id], lazy="selectin")
+    kkm: Mapped["Kkms"] = relationship("Kkms", foreign_keys=[kkms_id], lazy="noload")

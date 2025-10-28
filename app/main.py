@@ -19,6 +19,7 @@ from app.modules.regions.router import router as router_regions
 from app.modules.receipts_click.router import router as router_receipts_click
 from app.modules.egkn.router import router as router_egkn
 from app.modules.ckl.router import router as router_ckl
+from app.modules.product_analytics.router import router as router_product_analytics
 
 
 @asynccontextmanager
@@ -57,6 +58,7 @@ def register_routers(app: FastAPI) -> None:
     app.include_router(router_regions, prefix=global_prefix_v1)
     app.include_router(router_receipts_click, prefix=global_prefix_v1)
     app.include_router(router_egkn, prefix=global_prefix_v1)
+    app.include_router(router_product_analytics, prefix=global_prefix_v1)
 
 
 def create_app() -> FastAPI:

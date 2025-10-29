@@ -11,9 +11,11 @@ from .dtos import (
     GtinKkmsDto,
     GtinNpFilterDto,
     GtinKkmsFilterDto,
+    GtinTotalDto,
+    GtinTotalFilterDto,
 )
-from .models import GtinNp, GtinKkms
-from .repository import GtinNpRepo, GtinKkmsRepo
+from .models import GtinNp, GtinKkms, GtinTotal
+from .repository import GtinNpRepo, GtinKkmsRepo, GtinTotalRepo
 
 
 router = APIRouter(prefix="/product-analytics", tags=["product-analytics"])
@@ -107,6 +109,51 @@ class GtinKkmsRouter(APIRouter):
         return [GtinKkmsDto.model_validate(item) for item in response]
 
 
+class GtinTotalRouter(APIRouter):
+    """Роутер для GTIN общей статистики"""
+
+    sub_router = APIRouter(prefix="/gtin-total", tags=["product-analytics: gtin-total"])
+    base_router = BaseCRUDRouter(
+        "gtin-total",
+        GtinTotal,
+        GtinTotalRepo,
+        GtinTotalDto,
+        tags=["product-analytics: gtin-total"],
+    )
+
+    def __init__(self):
+        super().__init__()
+        self.include_router(self.sub_router)
+        self.include_router(self.base_router)
+
+    @sub_router.get("/filter", response_model=List[GtinTotalDto])
+    @cache(expire=cache_ttl, key_builder=request_key_builder)
+    async def filter_gtin_total(
+        filters: Annotated[GtinTotalFilterDto, Query()],
+        session: AsyncSession = Depends(get_session_without_commit),
+    ):
+        """
+        Фильтрация GTIN общей статистики
+
+        - **dtype**: тип данных
+        - **kkms_id**: ID ККМ
+        - **gtin**: GTIN код
+        """
+        response = await GtinTotalRepo(session).filter(filters)
+        return [GtinTotalDto.model_validate(item) for item in response]
+
+    @sub_router.get("/by-kkm/{kkms_id}", response_model=List[GtinTotalDto])
+    @cache(expire=cache_ttl, key_builder=request_key_builder)
+    async def get_by_kkm(
+        kkms_id: int,
+        session: AsyncSession = Depends(get_session_without_commit),
+    ):
+        """Получить все GTIN для ККМ"""
+        response = await GtinTotalRepo(session).get_by_kkm_id(kkms_id)
+        return [GtinTotalDto.model_validate(item) for item in response]
+
+
 # Подключение роутеров
 router.include_router(GtinNpRouter())
 router.include_router(GtinKkmsRouter())
+router.include_router(GtinTotalRouter())

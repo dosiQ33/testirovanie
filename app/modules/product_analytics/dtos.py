@@ -41,3 +41,23 @@ class GtinKkmsFilterDto(BasestDto):
     dtype: Optional[str] = None
     kkms_id: Optional[int] = None
     gtin: Optional[str] = None
+
+
+class GtinTotalDto(BasestDto):
+    """DTO для GTIN общей статистики"""
+
+    id: int
+    dtype: Optional[str] = None
+    kkms_id: Optional[int] = None
+    gtin: Optional[str] = None
+    item_name: Optional[str] = None
+    full_price: Optional[float] = None
+    full_count: Optional[float] = None
+
+
+class GtinTotalFilterDto(BasestDto):
+    """DTO для фильтрации GTIN общей статистики"""
+
+    dtype: Optional[str] = None
+    kkms_id: Optional[int] = None
+    gtin: Optional[str] = None

@@ -54,3 +54,27 @@ class GtinKkms(BasestModel):
     )
 
     kkm: Mapped["Kkms"] = relationship("Kkms", foreign_keys=[kkms_id], lazy="noload")
+
+
+class GtinTotal(BasestModel):
+    __tablename__ = "gtin_total"
+    __table_args__ = dict(schema="public", comment="GTIN общая статистика")
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+
+    dtype: Mapped[str] = mapped_column(comment="Тип данных", nullable=True)
+
+    kkms_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("kkms.id"), comment="ID ККМ", nullable=True
+    )
+
+    gtin: Mapped[str] = mapped_column(comment="GTIN код", nullable=True)
+    item_name: Mapped[str] = mapped_column(comment="Наименование товара", nullable=True)
+    full_price: Mapped[float] = mapped_column(
+        Float, comment="Полная цена", nullable=True
+    )
+    full_count: Mapped[float] = mapped_column(
+        Float, comment="Полное количество", nullable=True
+    )
+
+    kkm: Mapped["Kkms"] = relationship("Kkms", foreign_keys=[kkms_id], lazy="noload")

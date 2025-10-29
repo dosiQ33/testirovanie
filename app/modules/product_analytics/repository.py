@@ -4,8 +4,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from loguru import logger
 
 from app.modules.common.repository import BaseRepository
-from .models import GtinNp, GtinKkms
-from .dtos import GtinNpFilterDto, GtinKkmsFilterDto
+from .models import GtinNp, GtinKkms, GtinTotal
+from .dtos import GtinNpFilterDto, GtinKkmsFilterDto, GtinTotalFilterDto
 
 
 class GtinNpRepo(BaseRepository):
@@ -85,6 +85,50 @@ class GtinKkmsRepo(BaseRepository):
         """Получить все GTIN для ККМ"""
         try:
             query = select(self.model).filter(GtinKkms.kkms_id == kkms_id)
+            result = await self._session.execute(query)
+            records = result.unique().scalars().all()
+
+            logger.info(f"Найдено {len(records)} GTIN для ККМ {kkms_id}.")
+            return records
+
+        except SQLAlchemyError as e:
+            logger.error(f"Ошибка при получении GTIN для ККМ: {e}")
+            raise
+
+
+class GtinTotalRepo(BaseRepository):
+    """Репозиторий для GTIN общей статистики"""
+
+    model = GtinTotal
+
+    async def filter(self, filters: GtinTotalFilterDto) -> List[GtinTotal]:
+        """Фильтрация GTIN общей статистики"""
+        try:
+            query = select(self.model)
+
+            if filters.dtype is not None:
+                query = query.filter(GtinTotal.dtype == filters.dtype)
+
+            if filters.kkms_id is not None:
+                query = query.filter(GtinTotal.kkms_id == filters.kkms_id)
+
+            if filters.gtin is not None:
+                query = query.filter(GtinTotal.gtin == filters.gtin)
+
+            result = await self._session.execute(query)
+            records = result.unique().scalars().all()
+
+            logger.info(f"Найдено {len(records)} записей GTIN общей статистики.")
+            return records
+
+        except SQLAlchemyError as e:
+            logger.error(f"Ошибка при фильтрации GTIN общей статистики: {e}")
+            raise
+
+    async def get_by_kkm_id(self, kkms_id: int) -> List[GtinTotal]:
+        """Получить все GTIN для ККМ"""
+        try:
+            query = select(self.model).filter(GtinTotal.kkms_id == kkms_id)
             result = await self._session.execute(query)
             records = result.unique().scalars().all()
 

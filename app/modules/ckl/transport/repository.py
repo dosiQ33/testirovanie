@@ -9,7 +9,12 @@ from ..customs.models import (
     BookingStatuses,
     CustomsOffices,
     CustomsCrossings,
-    WarehouseTypes
+    WarehouseTypes,
+    CustomsDocuments
+)
+
+from ..cargo.models import ( 
+    Cargos
 )
 
 from ...ext.kazgeodesy.models import KazgeodesyRkOblasti, KazgeodesyRkRaiony
@@ -30,7 +35,7 @@ class VehiclesRepo(BaseRepository):
     model = Vehicles
 
     async def get_vehicle_info(self, vehicle_id: int):
-        query = (
+        query_base = (
             select(
                 Vehicles.number,
                 VehicleTypes.name_ru.label('vehicle_type'),
@@ -55,10 +60,26 @@ class VehiclesRepo(BaseRepository):
             .where(Vehicles.id == vehicle_id)
         )
 
-        result = await self._session.execute(query)
-        response = result.mappings().one()
+        query_cargo = (
+            select(
+                CustomsDocuments.id,
+                # func.sum(Cargos.net_weight), 
+                # func.sum(Cargos.gross_weight) откоментить когда заполнят cargos
+            )
+            # .join(CustomsDocuments, Cargos.customs_document_id == CustomsDocuments.id)  откоментить когда заполнят cargos
+            .join(Vehicles, CustomsDocuments.vehicle_id == Vehicles.id)
+            .where(Vehicles.id == vehicle_id)
+            .order_by(CustomsDocuments.declaration_date.desc())
+            .limit(1)
+        )
 
-        return response
+        result_cargo = await self._session.execute(query_cargo)
+        response_cargo = result_cargo.mappings().one()
+
+        result_base = await self._session.execute(query_base)
+        response_base = result_base.mappings().one()
+
+        return {'base_info': response_base, 'cargo_info': response_cargo}
     
     async def get_vehicle_position_info(self, vehicle_id: int):
         vehicle_shape_sq = (

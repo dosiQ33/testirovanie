@@ -162,10 +162,10 @@ class CustomsOfficesDto(DtoWithShape):
     code: Optional[str] = None
     name_ru: Optional[str] = None
     name_kk: Optional[str] = None
-    kato_code: str
+    kato_code: Optional[str]
     type_id: Optional[int] = None
     address: Optional[str] = None
-    rca_code: str
+    rca_code: Optional[str] 
     is_border_point: Optional[bool] = None
     status_id: int
     shape: SerializedGeojson

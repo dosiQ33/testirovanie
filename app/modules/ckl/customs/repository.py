@@ -29,6 +29,14 @@ from .models import (
     RepresentOffices
 )
 
+from ..common.models import (
+    TnVed
+)
+
+from ..cargo.models import (
+    Cargos
+)
+
 from app.modules.ckf.models import Organizations, Okeds, TaxRegimes
 
 # Simple lookup repositories
